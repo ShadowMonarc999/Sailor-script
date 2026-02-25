@@ -1,0 +1,560 @@
+--[[
+    AutoFarm v2 para SailorPiece
+    Biblioteca: Sirius UI
+    Versão Corrigida v3
+]]
+
+-- ============================================
+-- [[ CONFIGURAÇÕES GLOBAIS ]]
+-- ============================================
+
+getgenv().Config = {
+    -- Farm
+    AutoFarmAtivo = false,
+    DistanciaFarm = 8,
+    DistanciaVisao = 70,
+    NPCstargetados = {},
+    
+    -- Arma
+    ArmaSelecionada = "None",
+    AutoEquiparArma = false,
+    AutoUsarHabilidades = false,
+    
+    -- Quest
+    AutoQuestAtivo = false,
+    QuestSelecionada = 1,
+    ListaQuests = {},
+    
+    -- Boss
+    AutoBossAtivo = false,
+    BossSelecionado = "StrongestToday",
+    DificuldadeBoss = "Normal",
+    
+    -- Sistema
+    AntiAfk = true,
+}
+
+-- Lista de Chefes conhecidos
+local ListaChefes = {"Alucard", "Aizen", "Madoka", "Jinwoo", "Gojo", "Sukuna", "Yuji", "Cid"}
+
+-- ============================================
+-- [[ BIBLIOTECA UI - SIRIUS ]]
+-- ============================================
+
+local Sirius = loadstring(game:HttpGet('https://sirius.menu/sirius'))()
+
+local Window = Sirius:CreateWindow({
+    Title = "[SailorPiece AutoFarm v2] By.Dk",
+    Theme = "Dark",
+    Center = true,
+    DragToggle = true,
+})
+
+-- ============================================
+-- [[ SISTEMA DE NOTIFICAÇÃO ]]
+-- ============================================
+
+
+    Sirius:Notify({ Title = "Sistema Carregado", Content = "Dk te da oi", Duration = 5 })
+
+
+-- ============================================
+-- [[ SISTEMA ANTI-AFK ]]
+-- ============================================
+
+local VirtualUser = game:GetService("VirtualUser")
+game.Players.LocalPlayer.Idled:Connect(function()
+    if getgenv().Config.AntiAfk then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new(0,0))
+    end
+end)
+
+-- ============================================
+-- [[ FUNÇÕES AUXILIARES ]]
+-- ============================================
+
+-- Função: ÉNPCDeQuest - Verifica se é NPC de quest
+local function ENPCDeQuest(model)
+    if not model then return false end
+    
+    local nome = model.Name:lower()
+    local npcsQuest = {"quest", "giver", "npc", "merchant", "tutor", "guide", "quest giver"}
+    
+    for _, palavra in ipairs(npcsQuest) do
+        if nome:find(palavra) then
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- Função: ÉMonstro - Verifica se é monstro atacável
+local function EMonstro(model)
+    if not model then return false end
+    
+    if model == game.Players.LocalPlayer.Character then return false end
+    
+    local hp = model:FindFirstChild("Humanoid")
+    local rootPart = model:FindFirstChild("HumanoidRootPart")
+    
+    if not hp or not rootPart then return false end
+    if hp.Health <= 0 then return false end
+    
+    if ENPCDeQuest(model) then return false end
+    
+    local nome = model.Name:lower()
+    for _, boss in ipairs(ListaChefes) do
+        if nome:find(boss:lower()) then
+            return true
+        end
+    end
+    
+    return hp.MaxHealth > 10
+end
+
+-- Função: PegarMonstrosProximos
+local function PegarMonstrosProximos()
+    local monstros = {}
+    local personagem = game.Players.LocalPlayer.Character
+    
+    if not personagem or not personagem:FindFirstChild("HumanoidRootPart") then
+        return {"Nenhum"}
+    end
+    
+    for _, objeto in pairs(game.Workspace:GetDescendants()) do
+        if EMonstro(objeto) then
+            local distancia = (personagem.HumanoidRootPart.Position - objeto.HumanoidRootPart.Position).Magnitude
+            if distancia <= getgenv().Config.DistanciaVisao then
+                table.insert(monstros, objeto.Name)
+            end
+        end
+    end
+    
+    if #monstros == 0 then
+        table.insert(monstros, "Nenhum")
+    end
+    
+    return monstros
+end
+
+-- Função: PegarArmasInventario
+local function PegarArmasInventario()
+    local armas = {"None"}
+    
+    pcall(function()
+        local backpack = game.Players.LocalPlayer.Backpack
+        local character = game.Players.LocalPlayer.Character
+        
+        for _, ferramenta in pairs(backpack:GetChildren()) do
+            if ferramenta:IsA("Tool") then
+                table.insert(armas, ferramenta.Name)
+            end
+        end
+        
+        if character then
+            for _, ferramenta in pairs(character:GetChildren()) do
+                if ferramenta:IsA("Tool") then
+                    table.insert(armas, ferramenta.Name)
+                end
+            end
+        end
+    end)
+    
+    return armas
+end
+
+-- Função: EquiparArma
+local function EquiparArma()
+    pcall(function()
+        if getgenv().Config.AutoEquiparArma and getgenv().Config.ArmaSelecionada ~= "None" then
+            local personagem = game.Players.LocalPlayer.Character
+            local backpack = game.Players.LocalPlayer.Backpack
+            
+            if personagem and not personagem:FindFirstChild(getgenv().Config.ArmaSelecionada) then
+                local arma = backpack:FindFirstChild(getgenv().Config.ArmaSelecionada)
+                if arma then
+                    personagem.Humanoid:EquipTool(arma)
+                end
+            end
+        end
+    end)
+end
+
+-- Função: AtacarAlvo
+local function AtacarAlvo()
+    pcall(function()
+        local remote = game:GetService("ReplicatedStorage"):WaitForChild("CombatSystem"):WaitForChild("Remotes"):WaitForChild("RequestHit")
+        
+        if remote then
+            remote:FireServer()
+            
+            if getgenv().Config.AutoUsarHabilidades then
+                local input = game:GetService("VirtualInputManager")
+                local teclas = {"Z", "X", "C", "V", "F"}
+                
+                for _, tecla in ipairs(teclas) do
+                    input:SendKeyEvent(true, tecla, false, game)
+                    task.wait(0.01)
+                    input:SendKeyEvent(false, tecla, false, game)
+                end
+            end
+        end
+    end)
+end
+
+-- Função: PegarMonstroMaisProximo
+local function PegarMonstroMaisProximo()
+    local personagem = game.Players.LocalPlayer.Character
+    if not personagem or not personagem:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    local rootPersonagem = personagem.HumanoidRootPart
+    local menorDistancia = getgenv().Config.DistanciaVisao
+    local alvoProximo = nil
+    
+    local npcsSelecionados = getgenv().Config.NPCstargetados
+    
+    for _, objeto in pairs(game.Workspace:GetDescendants()) do
+        if EMonstro(objeto) then
+            local eSelecionado = false
+            
+            if npcsSelecionados and #npcsSelecionados > 0 then
+                for _, nomeSelecionado in ipairs(npcsSelecionados) do
+                    if objeto.Name == nomeSelecionado then
+                        eSelecionado = true
+                        break
+                    end
+                end
+            end
+            
+            if (npcsSelecionados == nil or #npcsSelecionados == 0) or eSelecionado then
+                local distancia = (rootPersonagem.Position - objeto.HumanoidRootPart.Position).Magnitude
+                if distancia < menorDistancia then
+                    menorDistancia = distancia
+                    alvoProximo = objeto
+                end
+            end
+        end
+    end
+    
+    return alvoProximo
+end
+
+-- Função: PegarChefeProximo
+local function PegarChefeProximo()
+    local personagem = game.Players.LocalPlayer.Character
+    if not personagem or not personagem:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    for _, objeto in pairs(game.Workspace:GetDescendants()) do
+        if EMonstro(objeto) then
+            if objeto ~= personagem and objeto.Humanoid.Health > 0 then
+                if objeto.Humanoid.MaxHealth > 1000 then
+                    local distancia = (personagem.HumanoidRootPart.Position - objeto.HumanoidRootPart.Position).Magnitude
+                    if distancia <= getgenv().Config.DistanciaVisao then
+                        return objeto
+                    end
+                end
+            end
+        end
+    end
+    
+    return nil
+end
+
+-- ============================================
+-- [[ SISTEMA DE QUEST ]]
+-- ============================================
+
+-- Função: PegarQuestsDisponiveis
+local function PegarQuestsDisponiveis()
+    local quests = {"1"}
+    
+    pcall(function()
+        local remotestorage = game:GetService("ReplicatedStorage")
+        local questfolder = remotestorage:FindFirstChild("Quests") or workspace:FindFirstChild("Quests")
+        
+        if questfolder then
+            quests = {}
+            for _, quest in ipairs(questfolder:GetChildren()) do
+                table.insert(quests, quest.Name)
+            end
+        end
+        
+        if #quests == 0 then
+            quests = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}
+        end
+    end)
+    
+    if #quests == 0 then
+        quests = {"1"}
+    end
+    
+    return quests
+end
+
+-- Função: AceitarQuest
+local function AceitarQuest()
+    pcall(function()
+        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") or game:GetService("ReplicatedStorage"):FindFirstChild("AcceptQuest")
+        
+        if remote then
+            local acceptRemote = remote:FindFirstChild("AcceptQuest") or remote:FindFirstChild("Accept")
+            if acceptRemote then
+                acceptRemote:FireServer(tonumber(getgenv().Config.QuestSelecionada) or 1)
+                Notificar("Quest", "Quest #" .. tostring(getgenv().Config.QuestSelecionada) .. " aceita!", 3)
+            end
+        end
+        
+        Notificar("Quest", "Tentando aceitar quest #" .. tostring(getgenv().Config.QuestSelecionada), 3)
+    end)
+end
+
+-- ============================================
+-- [[ LOOPS DE FARM ]]
+-- ============================================
+
+local function LoopFarm()
+    while getgenv().Config.AutoFarmAtivo do
+        task.wait(0.1)
+        
+        local alvo = PegarMonstroMaisProximo()
+        
+        if alvo and alvo:FindFirstChild("HumanoidRootPart") then
+            local rootAlvo = alvo.HumanoidRootPart
+            local humanoideAlvo = alvo:FindFirstChild("Humanoid")
+            
+            while getgenv().Config.AutoFarmAtivo and humanoideAlvo and humanoideAlvo.Health > 0 do
+                task.wait(0.01)
+                
+                local char = game.Players.LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if root and rootAlvo then
+                    EquiparArma()
+                    
+                    root.Velocity = Vector3.new(0, 0, 0)
+                    root.RotVelocity = Vector3.new(0, 0, 0)
+                    
+                    root.CFrame = rootAlvo.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                    
+                    AtacarAlvo()
+                else
+                    break
+                end
+            end
+        else
+            task.wait(0.5)
+        end
+    end
+end
+
+local function LoopBoss()
+    while getgenv().Config.AutoBossAtivo do
+        task.wait(1)
+        
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TeleportToPortal"):FireServer("Shinjuku")
+        end)
+        
+        task.wait(2)
+        
+        pcall(function()
+            local args = {[1] = getgenv().Config.BossSelecionado, [2] = getgenv().Config.DificuldadeBoss}
+            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("RequestSpawnStrongestBoss"):FireServer(unpack(args))
+        end)
+        
+        while getgenv().Config.AutoBossAtivo do
+            task.wait(0.05)
+            
+            local boss = PegarChefeProximo()
+            if boss then
+                local char = game.Players.LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                local bossRoot = boss:FindFirstChild("HumanoidRootPart")
+                
+                if root and bossRoot then
+                    EquiparArma()
+                    root.CFrame = bossRoot.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+                    AtacarAlvo()
+                end
+            else
+                task.wait(3)
+                pcall(function()
+                    local args = {[1] = getgenv().Config.BossSelecionado, [2] = getgenv().Config.DificuldadeBoss}
+                    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("RequestSpawnStrongestBoss"):FireServer(unpack(args))
+                end)
+            end
+        end
+    end
+end
+
+-- ============================================
+-- [[ CRIAÇÃO DA UI ]]
+-- ============================================
+
+local TabFarm = Window:AddTab("Auto Farm")
+
+TabFarm:AddSection("Farm de Monstros")
+
+TabFarm:AddButton({
+    Name = "Atualizar Monstros Proximos",
+    Callback = function()
+        local monstros = PegarMonstrosProximos()
+        Notificar("Monstros", "Encontrados: " .. #monstros, 3)
+    end,
+})
+
+TabFarm:AddToggle({
+    Name = "Ativar Auto Farm",
+    Default = false,
+    Callback = function(Valor)
+        getgenv().Config.AutoFarmAtivo = Valor
+        if Valor then
+            task.spawn(LoopFarm)
+            Notificar("Farm", "Auto Farm ativado!", 3)
+        else
+            Notificar("Farm", "Auto Farm desativado", 3)
+        end
+    end,
+})
+
+local TabQuest = Window:AddTab("Auto Quest")
+
+TabQuest:AddSection("Configuracao de Quest")
+
+TabQuest:AddDropdown({
+    Name = "Selecionar Quest",
+    Options = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"},
+    Default = "1",
+    Callback = function(Valor)
+        getgenv().Config.QuestSelecionada = tonumber(Valor) or 1
+    end,
+})
+
+TabQuest:AddButton({
+    Name = "Aceitar Quest Selecionada",
+    Callback = function()
+        AceitarQuest()
+    end,
+})
+
+TabQuest:AddToggle({
+    Name = "Auto Aceitar Quest",
+    Default = false,
+    Callback = function(Valor)
+        getgenv().Config.AutoQuestAtivo = Valor
+        if Valor then
+            AceitarQuest()
+        end
+    end,
+})
+
+local TabBoss = Window:AddTab("Auto Boss")
+
+TabBoss:AddSection("Farm de Chefes")
+
+TabBoss:AddDropdown({
+    Name = "Tipo de Boss",
+    Options = {"StrongestToday", "StrongestHistory"},
+    Default = "StrongestToday",
+    Callback = function(Valor)
+        getgenv().Config.BossSelecionado = Valor
+    end,
+})
+
+TabBoss:AddDropdown({
+    Name = "Dificuldade",
+    Options = {"Normal", "Medium", "Hard", "Extreme"},
+    Default = "Normal",
+    Callback = function(Valor)
+        getgenv().Config.DificuldadeBoss = Valor
+    end,
+})
+
+TabBoss:AddToggle({
+    Name = "Ativar Auto Boss",
+    Default = false,
+    Callback = function(Valor)
+        getgenv().Config.AutoBossAtivo = Valor
+        if Valor then
+            task.spawn(LoopBoss)
+            Notificar("Boss", "Auto Boss ativado!", 3)
+        end
+    end,
+})
+
+local TabConfig = Window:AddTab("Configuracoes")
+
+TabConfig:AddSection("Protecao")
+
+TabConfig:AddToggle({
+    Name = "Anti-AFK",
+    Default = true,
+    Callback = function(Valor)
+        getgenv().Config.AntiAfk = Valor
+    end,
+})
+
+TabConfig:AddSection("Combate")
+
+TabConfig:AddDropdown({
+    Name = "Selecionar Arma",
+    Options = PegarArmasInventario(),
+    Callback = function(Valor)
+        getgenv().Config.ArmaSelecionada = Valor
+    end,
+})
+
+TabConfig:AddButton({
+    Name = "Atualizar Armas",
+    Callback = function()
+        Notificar("Armas", "Lista atualizada!", 2)
+    end,
+})
+
+TabConfig:AddToggle({
+    Name = "Auto Equipar Arma",
+    Default = false,
+    Callback = function(Valor)
+        getgenv().Config.AutoEquiparArma = Valor
+    end,
+})
+
+TabConfig:AddToggle({
+    Name = "Auto Habilidades (Z,X,C,V,F)",
+    Default = false,
+    Callback = function(Valor)
+        getgenv().Config.AutoUsarHabilidades = Valor
+    end,
+})
+
+TabConfig:AddSection("Distancias")
+
+TabConfig:AddSlider({
+    Name = "Distancia de Ataque",
+    Min = 0,
+    Max = 15,
+    Default = 8,
+    Callback = function(Valor)
+        getgenv().Config.DistanciaFarm = Valor
+    end,
+})
+
+TabConfig:AddSlider({
+    Name = "Distancia de Visao",
+    Min = 10,
+    Max = 500,
+    Default = 70,
+    Callback = function(Valor)
+        getgenv().Config.DistanciaVisao = Valor
+    end,
+})
+
+-- Notificacao inicial
+Notificar("SailorPiece AutoFarm v2", "Script carregado com sucesso!", 5)
+print("=== SCRIPT CARREGADO ===")
