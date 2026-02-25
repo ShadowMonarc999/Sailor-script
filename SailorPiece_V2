@@ -610,19 +610,55 @@ local function modificarBotaoMusica()
     end
     
     return true
--- Tentar modificar o botão
-task.spawn(function()
-    local tentativas = 0
-    while tentativas < 20 do
-        task.wait(1)
-        if modificarBotaoMusica() then
-            print("✅ Botão de música modificado com sucesso!")
-            queueNotification("AutoFarm", "Botão de música agora controla o AutoFarm!", 4400695581)
-            break
-        end
-        tentativas = tentativas + 1
+
+-- Criar um botão NOVO ao lado do de música
+local function criarBotaoNovo()
+    local siriusGUI = game:GetService("CoreGui"):FindFirstChild("Sirius")
+    if not siriusGUI then return false end
+    
+    local smartBar = siriusGUI:FindFirstChild("SmartBar")
+    if not smartBar then return false end
+    
+    local buttons = smartBar:FindFirstChild("Buttons")
+    if not buttons then return false end
+    
+    -- Pegar o botão de música como referência
+    local musicButton = buttons:FindFirstChild("Music")
+    if not musicButton then return false end
+    
+    -- Clonar o botão de música
+    local novoBotao = musicButton:Clone()
+    novoBotao.Name = "AutoFarm"
+    novoBotao.Position = UDim2.new(musicButton.Position.X.Scale + 0.07, 0, 0.5, 0)
+    
+    -- Mudar o ícone
+    novoBotao.Icon.Image = "rbxassetid://9134780101"
+    
+    -- Remover eventos antigos
+    if novoBotao:FindFirstChild("Interact") then
+        novoBotao.Interact:Destroy()
     end
-end)
+    
+    -- Criar novo Interact
+    local interact = Instance.new("TextButton")
+    interact.Name = "Interact"
+    interact.Size = UDim2.new(1, 0, 1, 0)
+    interact.BackgroundTransparency = 1
+    interact.Text = ""
+    interact.Parent = novoBotao
+    
+    -- Adicionar função
+    interact.MouseButton1Click:Connect(function()
+        loadstring(game:HttpGet("https://github.com/ShadowMonarc999/Sailor-script/raw/refs/heads/main/SailorPiece_V2"))()
+    end)
+    
+    -- Adicionar à hotbar
+    novoBotao.Parent = buttons
+    
+    return true
+end
+
+-- Usar esta função em vez da outra
 
 end
 
