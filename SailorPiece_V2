@@ -610,6 +610,19 @@ local function modificarBotaoMusica()
     end
     
     return true
+-- Tentar modificar o botão
+task.spawn(function()
+    local tentativas = 0
+    while tentativas < 20 do
+        task.wait(1)
+        if modificarBotaoMusica() then
+            print("✅ Botão de música modificado com sucesso!")
+            queueNotification("AutoFarm", "Botão de música agora controla o AutoFarm!", 4400695581)
+            break
+        end
+        tentativas = tentativas + 1
+    end
+end)
 
 end
 
