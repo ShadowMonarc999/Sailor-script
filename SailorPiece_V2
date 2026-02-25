@@ -610,56 +610,151 @@ local function modificarBotaoMusica()
     end
     
     return true
+-- Inicio do Script
+--[[
+    INTERFACE SIMPLES PARA AUTOFARM
+    Funciona junto com o Sirius sem conflitos
+]]
 
--- Criar um botão NOVO ao lado do de música
-local function criarBotaoNovo()
-    local siriusGUI = game:GetService("CoreGui"):FindFirstChild("Sirius")
-    if not siriusGUI then return false end
+-- Aguardar jogo carregar
+repeat wait() until game:IsLoaded()
+
+-- Variáveis
+local player = game.Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+-- ============================================
+-- [[ CRIAR INTERFACE MÍNIMA ]]
+-- ============================================
+
+-- Criar ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoFarmGUI"
+screenGui.Parent = CoreGui
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.DisplayOrder = 999999 -- Ficar por cima de tudo
+
+-- BOTÃO PRINCIPAL (simples e funcional)
+local botao = Instance.new("TextButton")
+botao.Size = UDim2.new(0, 150, 0, 50)
+botao.Position = UDim2.new(0, 20, 0.5, -25)
+botao.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+botao.Text = "🚀 EXECUTAR AUTOFARM"
+botao.TextColor3 = Color3.fromRGB(255, 255, 255)
+botao.TextSize = 14
+botao.Font = Enum.Font.SourceSansBold
+botao.BorderSizePixel = 0
+botao.Parent = screenGui
+
+-- Borda arredondada
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 8)
+uiCorner.Parent = botao
+
+-- ============================================
+-- [[ FUNÇÃO PARA EXECUTAR O SCRIPT ]]
+-- ============================================
+
+local function executarScript()
+    -- Feedback visual
+    botao.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+    botao.Text = "⚡ CARREGANDO..."
+    task.wait(0.3)
     
-    local smartBar = siriusGUI:FindFirstChild("SmartBar")
-    if not smartBar then return false end
-    
-    local buttons = smartBar:FindFirstChild("Buttons")
-    if not buttons then return false end
-    
-    -- Pegar o botão de música como referência
-    local musicButton = buttons:FindFirstChild("Music")
-    if not musicButton then return false end
-    
-    -- Clonar o botão de música
-    local novoBotao = musicButton:Clone()
-    novoBotao.Name = "AutoFarm"
-    novoBotao.Position = UDim2.new(musicButton.Position.X.Scale + 0.07, 0, 0.5, 0)
-    
-    -- Mudar o ícone
-    novoBotao.Icon.Image = "rbxassetid://9134780101"
-    
-    -- Remover eventos antigos
-    if novoBotao:FindFirstChild("Interact") then
-        novoBotao.Interact:Destroy()
-    end
-    
-    -- Criar novo Interact
-    local interact = Instance.new("TextButton")
-    interact.Name = "Interact"
-    interact.Size = UDim2.new(1, 0, 1, 0)
-    interact.BackgroundTransparency = 1
-    interact.Text = ""
-    interact.Parent = novoBotao
-    
-    -- Adicionar função
-    interact.MouseButton1Click:Connect(function()
+    -- Executar o script
+    local success, err = pcall(function()
         loadstring(game:HttpGet("https://github.com/ShadowMonarc999/Sailor-script/raw/refs/heads/main/SailorPiece_V2"))()
     end)
     
-    -- Adicionar à hotbar
-    novoBotao.Parent = buttons
-    
-    return true
+    if success then
+        botao.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        botao.Text = "✅ EXECUTADO!"
+        task.wait(1)
+        botao.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        botao.Text = "🚀 EXECUTAR AUTOFARM"
+    else
+        botao.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        botao.Text = "❌ ERRO"
+        print("Erro:", err)
+        task.wait(2)
+        botao.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        botao.Text = "🚀 EXECUTAR AUTOFARM"
+    end
 end
 
--- Usar esta função em vez da outra
+-- Conectar clique
+botao.MouseButton1Click:Connect(executarScript)
 
+-- ============================================
+-- [[ TORNAR BOTÃO ARRASTÁVEL ]]
+-- ============================================
+
+local dragging = false
+local dragStart
+local startPos
+
+botao.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = botao.Position
+    end
+end)
+
+botao.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+botao.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        botao.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ============================================
+-- [[ ATALHO DE TECLA ]]
+-- ============================================
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    -- F4 para executar
+    if input.KeyCode == Enum.KeyCode.F4 then
+        executarScript()
+    end
+    
+    -- F3 para esconder/mostrar
+    if input.KeyCode == Enum.KeyCode.F3 then
+        screenGui.Enabled = not screenGui.Enabled
+    end
+end)
+
+-- ============================================
+-- [[ MENSAGEM INICIAL ]]
+-- ============================================
+
+print("✅ Interface do AutoFarm carregada!")
+print("📌 Botão criado no canto esquerdo")
+print("⌨️ F4 = Executar | F3 = Esconder/Mostrar")
+
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "🚀 AutoFarm",
+    Text = "Clique no botão azul ou pressione F4",
+    Duration = 5
+})
+-- Final do Script
 end
 
 -- Notificacao inicial
