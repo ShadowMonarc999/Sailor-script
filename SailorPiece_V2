@@ -610,8 +610,6 @@ local function modificarBotaoMusica()
     end
     
     return true
-end
-
 -- Tentar modificar o botão
 task.spawn(function()
     local tentativas = 0
@@ -625,6 +623,7 @@ task.spawn(function()
         tentativas = tentativas + 1
     end
 end)
+end
 
 -- Notificacao inicial
 Notificar("SailorPiece AutoFarm v2", "Script carregado com sucesso!", 5)
