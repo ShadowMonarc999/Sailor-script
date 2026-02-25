@@ -1,6 +1,7 @@
 --[[
-    AUTOFARM SAILOR PIECE - UI COMPLETA V2
+    AUTOFARM SAILOR PIECE - UI COMPLETA V3
     Com interruptores azuis e seleção de NPCs
+    Versão CORRIGIDA
 ]]
 
 -- Aguardar jogo carregar
@@ -64,22 +65,15 @@ getgenv().Config = {
     Watermark = true,
 }
 
--- Lista de NPCs conhecidos (você pode adicionar mais)
-local ListaNPCs = {
-    -- NPCs de farm (adicione aqui os nomes que aparecem no jogo)
-    "Bandit", "Pirate", "Marine", "Soldier", "Ninja",
-    "Zombie", "Skeleton", "Goblin", "Orc", "Demon",
-    "Dragon", "Wolf", "Bear", "Lion", "Tiger",
-}
-
--- Lista de Chefes
-local ListaChefes = {"Alucard", "Aizen", "Madoka", "Jinwoo", "Gojo", "Sukuna", "Yuji", "Cid"}
-
 -- Lista de NPCs de QUEST (para IGNORAR)
 local ListaQuestNPCs = {
     "Quest", "Giver", "Merchant", "Trader", "Vendor",
     "Shop", "Guide", "Tutor", "Master", "Teacher",
+    "NPC", "Bartender", "Seller", "Buyer", "Collector",
 }
+
+-- Lista de Chefes
+local ListaChefes = {"Alucard", "Aizen", "Madoka", "Jinwoo", "Gojo", "Sukuna", "Yuji", "Cid"}
 
 -- ============================================
 -- [[ FUNÇÕES DE NOTIFICAÇÃO ]]
@@ -104,7 +98,7 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- ============================================
--- [[ FUNÇÕES DO AUTOFARM - MELHORADAS ]]
+-- [[ FUNÇÕES DO AUTOFARM ]]
 -- ============================================
 
 -- Verificar se é NPC de quest (para IGNORAR)
@@ -151,7 +145,7 @@ local function EMonstroValido(model)
     return hp.MaxHealth > 10
 end
 
--- Pegar monstro mais próximo (considerando alvos selecionados)
+-- Pegar monstro mais próximo
 local function PegarMonstroMaisProximo()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
@@ -184,8 +178,11 @@ local function EscanearNPCsProximos()
             local hp = obj:FindFirstChild("Humanoid")
             if hp and hp.Health > 0 then
                 local nome = obj.Name
-                if not table.find(npcsEncontrados, nome) then
-                    table.insert(npcsEncontrados, nome)
+                -- Ignorar NPCs de quest no scan
+                if not ENPCQuest(obj) then
+                    if not table.find(npcsEncontrados, nome) then
+                        table.insert(npcsEncontrados, nome)
+                    end
                 end
             end
         end
@@ -211,32 +208,33 @@ local function EquiparArma()
     end
 end
 
--- Atacar (VERSÃO MELHORADA - TENTA DIFERENTES REMOTES)
+-- Atacar (tenta diferentes métodos)
 local function Atacar()
-    local success, result = pcall(function()
-        -- Tentar diferentes caminhos comuns para o remote de ataque
-        local possiveisRemotes = {
-            game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem"),
-            game:GetService("ReplicatedStorage"):FindFirstChild("Remotes"),
-            game:GetService("ReplicatedStorage"):FindFirstChild("Module"),
-            game:GetService("ReplicatedStorage"):FindFirstChild("Shared"),
-        }
-        
-        for _, remote in ipairs(possiveisRemotes) do
-            if remote then
-                local hitRemote = remote:FindFirstChild("RequestHit") or 
-                                 remote:FindFirstChild("Hit") or 
-                                 remote:FindFirstChild("Attack") or
-                                 remote:FindFirstChild("Damage")
-                
-                if hitRemote then
-                    hitRemote:FireServer()
-                    return true
-                end
+    local success = pcall(function()
+        -- Método 1: Tentar remote comum
+        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
+        if remote then
+            local hitRemote = remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit")
+            if hitRemote then
+                hitRemote:FireServer()
+                return
             end
         end
         
-        -- Se não encontrar remote, tentar simular clique
+        -- Método 2: Tentar outros remotes
+        local possiveis = {
+            "Damage", "Hit", "Attack", "DealDamage", "RequestDamage"
+        }
+        
+        for _, nome in ipairs(possiveis) do
+            local remote = game:GetService("ReplicatedStorage"):FindFirstChild(nome)
+            if remote then
+                remote:FireServer()
+                return
+            end
+        end
+        
+        -- Método 3: Simular clique
         local input = game:GetService("VirtualInputManager")
         input:SendMouseButtonEvent(Mouse.X, Mouse.Y, 0, true, game, 0)
         task.wait(0.05)
@@ -246,7 +244,7 @@ local function Atacar()
     return success
 end
 
--- Loop de Farm (VERSÃO MELHORADA)
+-- Loop de Farm
 local function LoopFarm()
     while getgenv().Config.AutoFarmAtivo do
         task.wait(0.1)
@@ -268,8 +266,7 @@ local function LoopFarm()
                     EquiparArma()
                     
                     -- Mover para o alvo
-                    local novaPos = rootAlvo.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
-                    root.CFrame = novaPos
+                    root.CFrame = rootAlvo.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
                     
                     -- Atacar
                     Atacar()
@@ -290,70 +287,6 @@ local function LoopFarm()
             end
         else
             task.wait(0.5)
-        end
-    end
-end
-
--- Loop de Boss
-local function LoopBoss()
-    while getgenv().Config.AutoBossAtivo do
-        task.wait(1)
-        
-        -- Tentar teleportar para boss
-        pcall(function()
-            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-            if remote then
-                local teleport = remote:FindFirstChild("TeleportToPortal") or 
-                                remote:FindFirstChild("Teleport") or
-                                remote:FindFirstChild("GotoBoss")
-                if teleport then
-                    teleport:FireServer("Shinjuku")
-                end
-            end
-        end)
-        
-        task.wait(2)
-        
-        -- Spawnar boss
-        pcall(function()
-            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-            if remote then
-                local spawnBoss = remote:FindFirstChild("RequestSpawnStrongestBoss") or
-                                 remote:FindFirstChild("SpawnBoss") or
-                                 remote:FindFirstChild("StartBoss")
-                if spawnBoss then
-                    spawnBoss:FireServer(
-                        getgenv().Config.BossSelecionado,
-                        getgenv().Config.DificuldadeBoss
-                    )
-                end
-            end
-        end)
-        
-        -- Farmar boss
-        while getgenv().Config.AutoBossAtivo do
-            task.wait(0.05)
-            
-            local char = LocalPlayer.Character
-            if not char then break end
-            
-            -- Procurar boss (monstro com muita vida)
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
-                    local hp = obj.Humanoid
-                    if hp.MaxHealth > 1000 and hp.Health > 0 then
-                        local root = char:FindFirstChild("HumanoidRootPart")
-                        local bossRoot = obj:FindFirstChild("HumanoidRootPart")
-                        
-                        if root and bossRoot then
-                            EquiparArma()
-                            root.CFrame = bossRoot.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
-                            Atacar()
-                        end
-                        break
-                    end
-                end
-            end
         end
     end
 end
@@ -421,6 +354,10 @@ local function CriarInterruptor(pai, posY, texto, configVar)
                 Position = UDim2.new(1, -32, 0.5, -13),
                 BackgroundColor3 = Cores.Azul
             }):Play()
+            -- Iniciar loop se for AutoFarm
+            if configVar == "AutoFarmAtivo" and estado then
+                task.spawn(LoopFarm)
+            end
         else
             -- Animação para DESLIGADO (vermelho)
             TweenService:Create(SwitchBtn, TweenInfo.new(0.2), {
@@ -489,7 +426,7 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -50, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "⚓ SAILOR PIECE AUTOFARM v2"
+Title.Text = "⚓ SAILOR PIECE AUTOFARM v3"
 Title.TextColor3 = Cores.AzulClaro
 Title.TextSize = 20
 Title.Font = Enum.Font.SourceSansBold
@@ -643,7 +580,7 @@ ScanCorner.Parent = ScanBtn
 
 -- Frame para lista de NPCs
 local NPCListFrame = Instance.new("Frame")
-NPCListFrame.Size = UDim2.new(1, -10, 0, 200)
+NPCListFrame.Size = UDim2.new(1, -10, 0, 250)
 NPCListFrame.Position = UDim2.new(0, 5, 0, 95)
 NPCListFrame.BackgroundColor3 = Cores.Background3
 NPCListFrame.BackgroundTransparency = 0.3
@@ -670,9 +607,21 @@ local function AtualizarListaNPCs()
     -- Escanear NPCs próximos
     local npcs = EscanearNPCsProximos()
     
+    if #npcs == 0 then
+        local msg = Instance.new("TextLabel")
+        msg.Size = UDim2.new(1, -10, 0, 50)
+        msg.BackgroundTransparency = 1
+        msg.Text = "Nenhum NPC encontrado por perto!"
+        msg.TextColor3 = Cores.TextDim
+        msg.TextSize = 14
+        msg.Font = Enum.Font.SourceSans
+        msg.Parent = NPCListFrame
+        return
+    end
+    
     for _, nome in ipairs(npcs) do
         local item = Instance.new("Frame")
-        item.Size = UDim2.new(1, -10, 0, 35)
+        item.Size = UDim2.new(1, -10, 0, 40)
         item.BackgroundColor3 = Cores.Background2
         item.BackgroundTransparency = 0.2
         item.Parent = NPCListFrame
@@ -693,8 +642,8 @@ local function AtualizarListaNPCs()
         nomeLabel.Parent = item
         
         local selectBtn = Instance.new("TextButton")
-        selectBtn.Size = UDim2.new(0, 80, 0, 25)
-        selectBtn.Position = UDim2.new(1, -90, 0.5, -12.5)
+        selectBtn.Size = UDim2.new(0, 100, 0, 30)
+        selectBtn.Position = UDim2.new(1, -110, 0.5, -15)
         selectBtn.BackgroundColor3 = Cores.Azul
         selectBtn.Text = "SELECIONAR"
         selectBtn.TextColor3 = Cores.Text
@@ -706,25 +655,41 @@ local function AtualizarListaNPCs()
         btnCorner.CornerRadius = UDim.new(0, 4)
         btnCorner.Parent = selectBtn
         
+        -- Verificar se já está selecionado
+        local alvos = getgenv().Config.AlvosSelecionados
+        for _, alvo in ipairs(alvos) do
+            if alvo == nome then
+                selectBtn.BackgroundColor3 = Cores.Verde
+                selectBtn.Text = "✓ SELECIONADO"
+                break
+            end
+        end
+        
         selectBtn.MouseButton1Click:Connect(function()
-            -- Adicionar à lista de alvos
             local alvos = getgenv().Config.AlvosSelecionados
-            if not table.find(alvos, nome) then
+            local encontrado = false
+            local pos = 0
+            
+            for i, alvo in ipairs(alvos) do
+                if alvo == nome then
+                    encontrado = true
+                    pos = i
+                    break
+                end
+            end
+            
+            if encontrado then
+                -- Remover da lista
+                table.remove(alvos, pos)
+                selectBtn.BackgroundColor3 = Cores.Azul
+                selectBtn.Text = "SELECIONAR"
+                Notificar("Alvo Removido", nome .. " removido da lista!", 2)
+            else
+                -- Adicionar à lista
                 table.insert(alvos, nome)
                 selectBtn.BackgroundColor3 = Cores.Verde
                 selectBtn.Text = "✓ SELECIONADO"
                 Notificar("Alvo Adicionado", nome .. " será farmado!", 2)
-            else
-                -- Remover da lista
-                for i, v in ipairs(alvos) do
-                    if v == nome then
-                        table.remove(alvos, i)
-                        break
-                    end
-                end
-                selectBtn.BackgroundColor3 = Cores.Azul
-                selectBtn.Text = "SELECIONAR"
-                Notificar("Alvo Removido", nome .. " removido da lista!", 2)
             end
         end)
     end
@@ -748,6 +713,35 @@ BossTitle.TextXAlignment = Enum.TextXAlignment.Left
 BossTitle.Parent = BossContainer
 
 CriarInterruptor(BossContainer, 45, "Auto Boss", "AutoBossAtivo")
+
+-- Dropdown para tipo de boss
+local BossTipoLabel = Instance.new("TextLabel")
+BossTipoLabel.Size = UDim2.new(0, 150, 0, 30)
+BossTipoLabel.Position = UDim2.new(0, 10, 0, 90)
+BossTipoLabel.BackgroundTransparency = 1
+BossTipoLabel.Text = "Tipo de Boss:"
+BossTipoLabel.TextColor3 = Cores.Text
+BossTipoLabel.TextSize = 16
+BossTipoLabel.Font = Enum.Font.SourceSans
+BossTipoLabel.TextXAlignment = Enum.TextXAlignment.Left
+BossTipoLabel.Parent = BossContainer
+
+-- ============================================
+-- [[ ABA CONFIG ]]
+-- ============================================
+
+local ConfigTitle = Instance.new("TextLabel")
+ConfigTitle.Size = UDim2.new(1, -10, 0, 35)
+ConfigTitle.Position = UDim2.new(0, 5, 0, 5)
+ConfigTitle.BackgroundTransparency = 1
+ConfigTitle.Text = "⚙️ CONFIGURAÇÕES GERAIS"
+ConfigTitle.TextColor3 = Cores.Roxo
+ConfigTitle.TextSize = 18
+ConfigTitle.Font = Enum.Font.SourceSansBold
+ConfigTitle.TextXAlignment = Enum.TextXAlignment.Left
+ConfigTitle.Parent = ConfigContainer
+
+CriarInterruptor(ConfigContainer, 45, "Anti-AFK", "AntiAfk")
 
 -- ============================================
 -- [[ CONTROLE DE ABAS ]]
@@ -773,17 +767,21 @@ local function MostrarAba(aba)
     AbaConfig.TextColor3 = Cores.TextDim
     
     -- Destacar aba selecionada
-    local abaSelecionada = {
-        Farm = {AbaFarm, Cores.Azul},
-        NPC = {AbaNPC, Cores.Verde},
-        Boss = {AbaBoss, Cores.Vermelho},
-        Quest = {AbaQuest, Cores.Amarelo},
-        Config = {AbaConfig, Cores.Roxo},
-    }[aba]
-    
-    if abaSelecionada then
-        abaSelecionada[1].BackgroundColor3 = abaSelecionada[2]
-        abaSelecionada[1].TextColor3 = Cores.Text
+    if aba == "Farm" then
+        AbaFarm.BackgroundColor3 = Cores.Azul
+        AbaFarm.TextColor3 = Cores.Text
+    elseif aba == "NPC" then
+        AbaNPC.BackgroundColor3 = Cores.Verde
+        AbaNPC.TextColor3 = Cores.Text
+    elseif aba == "Boss" then
+        AbaBoss.BackgroundColor3 = Cores.Vermelho
+        AbaBoss.TextColor3 = Cores.Text
+    elseif aba == "Quest" then
+        AbaQuest.BackgroundColor3 = Cores.Amarelo
+        AbaQuest.TextColor3 = Cores.Text
+    elseif aba == "Config" then
+        AbaConfig.BackgroundColor3 = Cores.Roxo
+        AbaConfig.TextColor3 = Cores.Text
     end
 end
 
@@ -805,7 +803,7 @@ local Watermark = Instance.new("TextLabel")
 Watermark.Size = UDim2.new(0, 200, 0, 20)
 Watermark.Position = UDim2.new(0, 10, 1, -25)
 Watermark.BackgroundTransparency = 1
-Watermark.Text = "⚓ AutoFarm v2 • By Dk"
+Watermark.Text = "⚓ AutoFarm v3 • By Dk"
 Watermark.TextColor3 = Cores.TextDim
 Watermark.TextSize = 12
 Watermark.Font = Enum.Font.SourceSans
@@ -829,7 +827,8 @@ end)
 -- [[ INICIALIZAÇÃO ]]
 -- ============================================
 
-Notificar("⚓ Sailor Piece AutoFarm", "UI carregada! Pressione F4 para abrir/fechar", 5)
-print("=== AUTOFARM UI V2 CARREGADA ===")
+Notificar("⚓ Sailor Piece AutoFarm v3", "UI carregada! Pressione F4 para abrir/fechar", 5)
+print("=== AUTOFARM UI V3 CARREGADA ===")
 print("📌 Use F4 para abrir/fechar a interface")
 print("📌 Selecione NPCs específicos na aba ALVOS")
+print("📌 Interruptores azuis = LIGADO | vermelhos = DESLIGADO")
