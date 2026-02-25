@@ -1,0 +1,199 @@
+-- PROPOSITO EDUCACIONAL: Script CORRIGIDO para achar NPCs e bosses
+
+local function encontrarTodosNPCsEBosses()
+    local resultados = {
+        npcs = {},
+        bosses = {},
+        suspeitos = {}
+    }
+    
+    for _, objeto in ipairs(workspace:GetDescendants()) do
+        if objeto:IsA("Model") then
+            
+            -- CORREÇÃO 1: Verifica se tem Humanoid (é NPC vivo)
+            local humanoid = objeto:FindFirstChild("Humanoid")
+            if humanoid then
+                
+                -- CORREÇÃO 2: Tenta pegar posição de forma SEGURA
+                local posicao = nil
+                
+                -- Método 1: Tenta usar PrimaryPart se existir
+                if objeto.PrimaryPart then
+                    posicao = objeto.PrimaryPart.Position
+                else
+                    -- Método 2: Procura por uma parte qualquer
+                    local parteEncontrada = objeto:FindFirstChild("HumanoidRootPart") or
+                                           objeto:FindFirstChild("Torso") or
+                                           objeto:FindFirstChild("Head") or
+                                           objeto:FindFirstChildOfClass("Part")
+                    
+                    if parteEncontrada then
+                        posicao = parteEncontrada.Position
+                    else
+                        -- Método 3: Usa CFrame.new(0,0,0) se não achar nada
+                        posicao = Vector3.new(0, 0, 0)
+                    end
+                end
+                
+                local info = {
+                    nome = objeto.Name,
+                    caminho = objeto:GetFullName(),
+                    posicao = posicao,
+                    health = humanoid.Health,
+                    maxHealth = humanoid.MaxHealth,
+                    tipo = "NPC"
+                }
+                
+                -- Identifica bosses por vida alta
+                if humanoid.MaxHealth > 500 then
+                    info.tipo = "BOSS (vida alta)"
+                    table.insert(resultados.bosses, info)
+                else
+                    table.insert(resultados.npcs, info)
+                end
+            end
+            
+            -- CORREÇÃO 3: Busca por nomes suspeitos (MAIS SEGURO)
+            local nomeLower = objeto.Name:lower()
+            local palavrasChave = {"boss", "chef", "raid", "elite", "legend", "ichigo", "saber", "qin", "gilgamesh"}
+            
+            for _, palavra in ipairs(palavrasChave) do
+                if nomeLower:find(palavra) then
+                    table.insert(resultados.suspeitos, {
+                        nome = objeto.Name,
+                        caminho = objeto:GetFullName(),
+                        razao = "Nome contém: " .. palavra
+                    })
+                    break
+                end
+            end
+        end
+    end
+    
+    return resultados
+end
+
+-- CORREÇÃO 4: Função detalharBoss MAIS ROBUSTA
+local function detalharBoss(bossModel)
+    -- Primeiro, tenta encontrar uma PrimaryPart ou criar uma
+    local primaryPart = bossModel.PrimaryPart
+    
+    if not primaryPart then
+        -- Procura por partes comuns
+        primaryPart = bossModel:FindFirstChild("HumanoidRootPart") or
+                     bossModel:FindFirstChild("Torso") or
+                     bossModel:FindFirstChild("Head") or
+                     bossModel:FindFirstChildOfClass("Part")
+        
+        -- Se encontrou, define como PrimaryPart (OPCIONAL)
+        if primaryPart then
+            pcall(function()
+                bossModel.PrimaryPart = primaryPart
+            end)
+        end
+    end
+    
+    local detalhes = {
+        nome = bossModel.Name,
+        caminho = bossModel:GetFullName(),
+        temPrimaryPart = primaryPart ~= nil,
+        posicao = primaryPart and primaryPart.Position or "Desconhecida",
+        humanoid = bossModel:FindFirstChild("Humanoid"),
+        partes = {},
+        scripts = {},
+        atributos = {}
+    }
+    
+    -- Resto do código continua igual...
+    for _, parte in ipairs(bossModel:GetDescendants()) do
+        if parte:IsA("BasePart") then
+            table.insert(detalhes.partes, {
+                nome = parte.Name,
+                posicao = parte.Position
+            })
+        end
+        
+        if parte:IsA("Script") or parte:IsA("LocalScript") then
+            table.insert(detalhes.scripts, parte.Name)
+        end
+    end
+    
+    for atributo, valor in pairs(bossModel:GetAttributes()) do
+        detalhes.atributos[atributo] = valor
+    end
+    
+    return detalhes
+end
+
+-- CORREÇÃO 5: Função para encontrar especificamente SEUS bosses
+local function encontrarMeusBosses()
+    local nomesBoss = {
+        "Ichigo", "ichigo", "ICHIGO",
+        "Saber", "saber", "SABER",
+        "QinShi", "qinshi", "QIN_SHI", "Qin Shi",
+        "Gilgamesh", "gilgamesh", "GILGAMESH"
+    }
+    
+    local encontrados = {}
+    
+    for _, objeto in ipairs(workspace:GetDescendants()) do
+        if objeto:IsA("Model") then
+            for _, nomeBoss in ipairs(nomesBoss) do
+                if objeto.Name == nomeBoss or objeto.Name:find(nomeBoss) then
+                    local detalhes = detalharBoss(objeto)
+                    table.insert(encontrados, detalhes)
+                    break
+                end
+            end
+        end
+    end
+    
+    return encontrados
+end
+
+-- EXECUÇÃO PRINCIPAL
+print("🔍 INICIANDO VARREDURA DE NPCS E BOSSES (VERSÃO CORRIGIDA)...")
+
+local resultados = encontrarTodosNPCsEBosses()
+
+print("\n=== RESULTADOS DA VARREDURA ===")
+print("NPCs normais encontrados: " .. #resultados.npcs)
+for i, npc in ipairs(resultados.npcs) do
+    local posStr = type(npc.posicao) == "table" and string.format("(%.1f, %.1f, %.1f)", npc.posicao.X, npc.posicao.Y, npc.posicao.Z) or "Posição desconhecida"
+    print(string.format("  %d. %s - Vida: %.0f/%.0f - %s", 
+          i, npc.nome, npc.health, npc.maxHealth, posStr))
+end
+
+print("\n🔥 BOSSES DETECTADOS: " .. #resultados.bosses)
+for i, boss in ipairs(resultados.bosses) do
+    local posStr = type(boss.posicao) == "table" and string.format("(%.1f, %.1f, %.1f)", boss.posicao.X, boss.posicao.Y, boss.posicao.Z) or boss.posicao
+    print(string.format("  %d. %s - Vida: %.0f/%.0f - %s", 
+          i, boss.nome, boss.health, boss.maxHealth, posStr))
+    print("     Caminho: " .. boss.caminho)
+end
+
+print("\n❓ SUSPEITOS (investigar): " .. #resultados.suspeitos)
+for i, sus in ipairs(resultados.suspeitos) do
+    print(string.format("  %d. %s - %s", i, sus.nome, sus.razao))
+end
+
+print("\n🎯 BUSCA ESPECÍFICA - SEUS 4 BOSSES:")
+local meusBosses = encontrarMeusBosses()
+if #meusBosses > 0 then
+    for i, boss in ipairs(meusBosses) do
+        print(string.format("  ✅ %s encontrado!", boss.nome))
+        print("     Posição: " .. tostring(boss.posicao))
+        print("     Partes: " .. #boss.partes)
+        if next(boss.atributos) then
+            print("     Atributos:")
+            for attr, val in pairs(boss.atributos) do
+                print("        " .. attr .. " = " .. tostring(val))
+            end
+        end
+    end
+else
+    print("  ❌ Nenhum dos seus bosses encontrado no Workspace")
+    print("     (Eles podem estar protegidos no ServerStorage!)")
+end
+
+print("\n=== VARREDURA CONCLUÍDA ===")
