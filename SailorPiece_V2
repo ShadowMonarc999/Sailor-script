@@ -1,6 +1,6 @@
 --[[
-    AUTOFARM SAILOR PIECE - UI COMPLETA
-    Interface profissional sem dependências externas
+    AUTOFARM SAILOR PIECE - UI COMPLETA V2
+    Com interruptores azuis e seleção de NPCs
 ]]
 
 -- Aguardar jogo carregar
@@ -19,6 +19,23 @@ local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
 -- ============================================
+-- [[ CORES DO TEMA ]]
+-- ============================================
+local Cores = {
+    Background = Color3.fromRGB(25, 25, 25),
+    Background2 = Color3.fromRGB(35, 35, 35),
+    Background3 = Color3.fromRGB(45, 45, 45),
+    Text = Color3.fromRGB(255, 255, 255),
+    TextDim = Color3.fromRGB(150, 150, 150),
+    Azul = Color3.fromRGB(0, 150, 255),
+    AzulClaro = Color3.fromRGB(100, 200, 255),
+    Verde = Color3.fromRGB(0, 200, 100),
+    Vermelho = Color3.fromRGB(255, 80, 80),
+    Amarelo = Color3.fromRGB(255, 200, 0),
+    Roxo = Color3.fromRGB(150, 100, 255),
+}
+
+-- ============================================
 -- [[ CONFIGURAÇÕES ]]
 -- ============================================
 getgenv().Config = {
@@ -26,6 +43,7 @@ getgenv().Config = {
     AutoFarmAtivo = false,
     DistanciaFarm = 8,
     DistanciaVisao = 70,
+    AlvosSelecionados = {}, -- NPCs específicos para farmar
     
     -- Arma
     ArmaSelecionada = "None",
@@ -46,8 +64,22 @@ getgenv().Config = {
     Watermark = true,
 }
 
+-- Lista de NPCs conhecidos (você pode adicionar mais)
+local ListaNPCs = {
+    -- NPCs de farm (adicione aqui os nomes que aparecem no jogo)
+    "Bandit", "Pirate", "Marine", "Soldier", "Ninja",
+    "Zombie", "Skeleton", "Goblin", "Orc", "Demon",
+    "Dragon", "Wolf", "Bear", "Lion", "Tiger",
+}
+
 -- Lista de Chefes
 local ListaChefes = {"Alucard", "Aizen", "Madoka", "Jinwoo", "Gojo", "Sukuna", "Yuji", "Cid"}
+
+-- Lista de NPCs de QUEST (para IGNORAR)
+local ListaQuestNPCs = {
+    "Quest", "Giver", "Merchant", "Trader", "Vendor",
+    "Shop", "Guide", "Tutor", "Master", "Teacher",
+}
 
 -- ============================================
 -- [[ FUNÇÕES DE NOTIFICAÇÃO ]]
@@ -72,30 +104,54 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- ============================================
--- [[ FUNÇÕES DO AUTOFARM ]]
+-- [[ FUNÇÕES DO AUTOFARM - MELHORADAS ]]
 -- ============================================
 
--- Verificar se é monstro
-local function EMonstro(model)
+-- Verificar se é NPC de quest (para IGNORAR)
+local function ENPCQuest(model)
+    if not model then return false end
+    local nome = model.Name:lower()
+    
+    for _, npc in ipairs(ListaQuestNPCs) do
+        if nome:find(npc:lower()) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Verificar se é monstro válido para farmar
+local function EMonstroValido(model)
     if not model then return false end
     if model == LocalPlayer.Character then return false end
     
+    -- Verificar se tem os componentes necessários
     local hp = model:FindFirstChild("Humanoid")
     local root = model:FindFirstChild("HumanoidRootPart")
     
     if not hp or not root then return false end
     if hp.Health <= 0 then return false end
     
-    -- Ignorar NPCs de quest
-    local nome = model.Name:lower()
-    if nome:find("quest") or nome:find("npc") or nome:find("merchant") then
+    -- IGNORAR NPCs de quest
+    if ENPCQuest(model) then return false end
+    
+    -- Se tem alvos selecionados, verificar se este está na lista
+    local alvos = getgenv().Config.AlvosSelecionados
+    if alvos and #alvos > 0 then
+        local nome = model.Name
+        for _, alvo in ipairs(alvos) do
+            if nome:find(alvo) then
+                return true
+            end
+        end
         return false
     end
     
+    -- Se não tem alvos selecionados, considerar qualquer monstro
     return hp.MaxHealth > 10
 end
 
--- Pegar monstro mais próximo
+-- Pegar monstro mais próximo (considerando alvos selecionados)
 local function PegarMonstroMaisProximo()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
@@ -105,7 +161,7 @@ local function PegarMonstroMaisProximo()
     local alvo = nil
     
     for _, obj in pairs(workspace:GetDescendants()) do
-        if EMonstro(obj) then
+        if EMonstroValido(obj) then
             local dist = (root.Position - obj.HumanoidRootPart.Position).Magnitude
             if dist < menorDist then
                 menorDist = dist
@@ -115,6 +171,28 @@ local function PegarMonstroMaisProximo()
     end
     
     return alvo
+end
+
+-- Função para escanear NPCs próximos
+local function EscanearNPCsProximos()
+    local npcsEncontrados = {}
+    local char = LocalPlayer.Character
+    if not char then return npcsEncontrados end
+    
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
+            local hp = obj:FindFirstChild("Humanoid")
+            if hp and hp.Health > 0 then
+                local nome = obj.Name
+                if not table.find(npcsEncontrados, nome) then
+                    table.insert(npcsEncontrados, nome)
+                end
+            end
+        end
+    end
+    
+    table.sort(npcsEncontrados)
+    return npcsEncontrados
 end
 
 -- Equipar arma
@@ -133,20 +211,42 @@ local function EquiparArma()
     end
 end
 
--- Atacar
+-- Atacar (VERSÃO MELHORADA - TENTA DIFERENTES REMOTES)
 local function Atacar()
-    pcall(function()
-        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
-        if remote then
-            local hitRemote = remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit")
-            if hitRemote then
-                hitRemote:FireServer()
+    local success, result = pcall(function()
+        -- Tentar diferentes caminhos comuns para o remote de ataque
+        local possiveisRemotes = {
+            game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem"),
+            game:GetService("ReplicatedStorage"):FindFirstChild("Remotes"),
+            game:GetService("ReplicatedStorage"):FindFirstChild("Module"),
+            game:GetService("ReplicatedStorage"):FindFirstChild("Shared"),
+        }
+        
+        for _, remote in ipairs(possiveisRemotes) do
+            if remote then
+                local hitRemote = remote:FindFirstChild("RequestHit") or 
+                                 remote:FindFirstChild("Hit") or 
+                                 remote:FindFirstChild("Attack") or
+                                 remote:FindFirstChild("Damage")
+                
+                if hitRemote then
+                    hitRemote:FireServer()
+                    return true
+                end
             end
         end
+        
+        -- Se não encontrar remote, tentar simular clique
+        local input = game:GetService("VirtualInputManager")
+        input:SendMouseButtonEvent(Mouse.X, Mouse.Y, 0, true, game, 0)
+        task.wait(0.05)
+        input:SendMouseButtonEvent(Mouse.X, Mouse.Y, 0, false, game, 0)
     end)
+    
+    return success
 end
 
--- Loop de Farm
+-- Loop de Farm (VERSÃO MELHORADA)
 local function LoopFarm()
     while getgenv().Config.AutoFarmAtivo do
         task.wait(0.1)
@@ -158,19 +258,38 @@ local function LoopFarm()
             local hpAlvo = alvo:FindFirstChild("Humanoid")
             
             while getgenv().Config.AutoFarmAtivo and hpAlvo and hpAlvo.Health > 0 do
-                task.wait(0.01)
+                task.wait(0.05)
                 
                 local char = LocalPlayer.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 
                 if root and rootAlvo then
+                    -- Equipar arma
                     EquiparArma()
-                    root.CFrame = rootAlvo.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
+                    
+                    -- Mover para o alvo
+                    local novaPos = rootAlvo.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
+                    root.CFrame = novaPos
+                    
+                    -- Atacar
                     Atacar()
+                    
+                    -- Usar habilidades se ativado
+                    if getgenv().Config.AutoUsarHabilidades then
+                        local input = game:GetService("VirtualInputManager")
+                        local teclas = {"Z", "X", "C", "V"}
+                        for _, tecla in ipairs(teclas) do
+                            input:SendKeyEvent(true, tecla, false, game)
+                            task.wait(0.01)
+                            input:SendKeyEvent(false, tecla, false, game)
+                        end
+                    end
                 else
                     break
                 end
             end
+        else
+            task.wait(0.5)
         end
     end
 end
@@ -180,46 +299,138 @@ local function LoopBoss()
     while getgenv().Config.AutoBossAtivo do
         task.wait(1)
         
+        -- Tentar teleportar para boss
         pcall(function()
             local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
             if remote then
-                remote:FindFirstChild("TeleportToPortal"):FireServer("Shinjuku")
+                local teleport = remote:FindFirstChild("TeleportToPortal") or 
+                                remote:FindFirstChild("Teleport") or
+                                remote:FindFirstChild("GotoBoss")
+                if teleport then
+                    teleport:FireServer("Shinjuku")
+                end
             end
         end)
         
         task.wait(2)
         
+        -- Spawnar boss
         pcall(function()
             local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
             if remote then
-                remote:FindFirstChild("RequestSpawnStrongestBoss"):FireServer(
-                    getgenv().Config.BossSelecionado,
-                    getgenv().Config.DificuldadeBoss
-                )
+                local spawnBoss = remote:FindFirstChild("RequestSpawnStrongestBoss") or
+                                 remote:FindFirstChild("SpawnBoss") or
+                                 remote:FindFirstChild("StartBoss")
+                if spawnBoss then
+                    spawnBoss:FireServer(
+                        getgenv().Config.BossSelecionado,
+                        getgenv().Config.DificuldadeBoss
+                    )
+                end
             end
         end)
         
+        -- Farmar boss
         while getgenv().Config.AutoBossAtivo do
             task.wait(0.05)
             
             local char = LocalPlayer.Character
             if not char then break end
             
+            -- Procurar boss (monstro com muita vida)
             for _, obj in pairs(workspace:GetDescendants()) do
-                if EMonstro(obj) and obj.Humanoid.MaxHealth > 1000 then
-                    local root = char:FindFirstChild("HumanoidRootPart")
-                    local bossRoot = obj:FindFirstChild("HumanoidRootPart")
-                    
-                    if root and bossRoot then
-                        EquiparArma()
-                        root.CFrame = bossRoot.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
-                        Atacar()
+                if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
+                    local hp = obj.Humanoid
+                    if hp.MaxHealth > 1000 and hp.Health > 0 then
+                        local root = char:FindFirstChild("HumanoidRootPart")
+                        local bossRoot = obj:FindFirstChild("HumanoidRootPart")
+                        
+                        if root and bossRoot then
+                            EquiparArma()
+                            root.CFrame = bossRoot.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
+                            Atacar()
+                        end
+                        break
                     end
-                    break
                 end
             end
         end
     end
+end
+
+-- ============================================
+-- [[ FUNÇÃO PARA CRIAR INTERRUPTOR ]]
+-- ============================================
+local function CriarInterruptor(pai, posY, texto, configVar)
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(1, -20, 0, 40)
+    Frame.Position = UDim2.new(0, 10, 0, posY)
+    Frame.BackgroundTransparency = 1
+    Frame.Parent = pai
+    
+    -- Texto
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0, 200, 1, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = texto
+    Label.TextColor3 = Cores.Text
+    Label.TextSize = 16
+    Label.Font = Enum.Font.SourceSans
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Frame
+    
+    -- Fundo do interruptor
+    local SwitchBg = Instance.new("Frame")
+    SwitchBg.Size = UDim2.new(0, 60, 0, 30)
+    SwitchBg.Position = UDim2.new(1, -70, 0.5, -15)
+    SwitchBg.BackgroundColor3 = Cores.Background3
+    SwitchBg.BackgroundTransparency = 0.3
+    SwitchBg.Parent = Frame
+    
+    local SwitchCorner = Instance.new("UICorner")
+    SwitchCorner.CornerRadius = UDim.new(0, 15)
+    SwitchCorner.Parent = SwitchBg
+    
+    -- Botão do interruptor
+    local SwitchBtn = Instance.new("TextButton")
+    SwitchBtn.Size = UDim2.new(0, 30, 0, 26)
+    SwitchBtn.Position = UDim2.new(0, 2, 0.5, -13)
+    SwitchBtn.BackgroundColor3 = Cores.Vermelho
+    SwitchBtn.Text = ""
+    SwitchBtn.Parent = SwitchBg
+    
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 13)
+    BtnCorner.Parent = SwitchBtn
+    
+    -- Estado inicial
+    local estado = getgenv().Config[configVar]
+    if estado then
+        SwitchBtn.BackgroundColor3 = Cores.Azul
+        SwitchBtn.Position = UDim2.new(1, -32, 0.5, -13)
+    end
+    
+    -- Função de clique
+    SwitchBtn.MouseButton1Click:Connect(function()
+        estado = not estado
+        getgenv().Config[configVar] = estado
+        
+        if estado then
+            -- Animação para LIGADO (azul)
+            TweenService:Create(SwitchBtn, TweenInfo.new(0.2), {
+                Position = UDim2.new(1, -32, 0.5, -13),
+                BackgroundColor3 = Cores.Azul
+            }):Play()
+        else
+            -- Animação para DESLIGADO (vermelho)
+            TweenService:Create(SwitchBtn, TweenInfo.new(0.2), {
+                Position = UDim2.new(0, 2, 0.5, -13),
+                BackgroundColor3 = Cores.Vermelho
+            }):Play()
+        end
+    end)
+    
+    return Frame
 end
 
 -- ============================================
@@ -235,10 +446,10 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- Frame principal
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 600, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -300, 0.5, -200)
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.BackgroundTransparency = 0.1
+MainFrame.Size = UDim2.new(0, 700, 0, 500)
+MainFrame.Position = UDim2.new(0.5, -350, 0.5, -250)
+MainFrame.BackgroundColor3 = Cores.Background
+MainFrame.BackgroundTransparency = 0.05
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
@@ -246,7 +457,7 @@ MainFrame.Parent = ScreenGui
 
 -- Borda arredondada
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.CornerRadius = UDim.new(0, 10)
 MainCorner.Parent = MainFrame
 
 -- Sombra
@@ -264,13 +475,13 @@ MainShadow.ZIndex = -1
 
 -- Barra de título
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 45)
+TitleBar.BackgroundColor3 = Cores.Background2
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
 
 local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.CornerRadius = UDim.new(0, 10)
 TitleCorner.Parent = TitleBar
 
 -- Título
@@ -279,20 +490,20 @@ Title.Size = UDim2.new(1, -50, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "⚓ SAILOR PIECE AUTOFARM v2"
-Title.TextColor3 = Color3.fromRGB(0, 200, 255)
-Title.TextSize = 18
+Title.TextColor3 = Cores.AzulClaro
+Title.TextSize = 20
 Title.Font = Enum.Font.SourceSansBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TitleBar
 
 -- Botão fechar
 local CloseBtn = Instance.new("ImageButton")
-CloseBtn.Size = UDim2.new(0, 25, 0, 25)
-CloseBtn.Position = UDim2.new(1, -30, 0, 7)
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 7)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Image = "rbxassetid://9134770786"
-CloseBtn.ImageColor3 = Color3.fromRGB(200, 200, 200)
-CloseBtn.ImageTransparency = 0.5
+CloseBtn.ImageColor3 = Cores.TextDim
+CloseBtn.ImageTransparency = 0.3
 CloseBtn.Parent = TitleBar
 
 CloseBtn.MouseButton1Click:Connect(function()
@@ -304,62 +515,69 @@ CloseBtn.MouseEnter:Connect(function()
 end)
 
 CloseBtn.MouseLeave:Connect(function()
-    TweenService:Create(CloseBtn, TweenInfo.new(0.2), {ImageTransparency = 0.5}):Play()
+    TweenService:Create(CloseBtn, TweenInfo.new(0.2), {ImageTransparency = 0.3}):Play()
 end)
 
 -- ============================================
--- [[ CRIAÇÃO DAS ABAS ]]
+-- [[ SISTEMA DE ABAS ]]
 -- ============================================
 
 local TabFrame = Instance.new("Frame")
-TabFrame.Size = UDim2.new(1, -20, 0, 40)
-TabFrame.Position = UDim2.new(0, 10, 0, 45)
+TabFrame.Size = UDim2.new(1, -20, 0, 45)
+TabFrame.Position = UDim2.new(0, 10, 0, 50)
 TabFrame.BackgroundTransparency = 1
 TabFrame.Parent = MainFrame
 
 -- Função para criar aba
 local function CriarAba(nome, icone, cor, posX)
     local Aba = Instance.new("TextButton")
-    Aba.Size = UDim2.new(0, 120, 0, 35)
+    Aba.Size = UDim2.new(0, 130, 0, 40)
     Aba.Position = UDim2.new(0, posX, 0, 0)
-    Aba.BackgroundColor3 = cor or Color3.fromRGB(40, 40, 40)
+    Aba.BackgroundColor3 = Cores.Background3
     Aba.BackgroundTransparency = 0.3
     Aba.Text = icone .. " " .. nome
-    Aba.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Aba.TextColor3 = Cores.TextDim
     Aba.TextSize = 16
     Aba.Font = Enum.Font.SourceSansBold
     Aba.BorderSizePixel = 0
     Aba.Parent = TabFrame
     
     local AbaCorner = Instance.new("UICorner")
-    AbaCorner.CornerRadius = UDim.new(0, 6)
+    AbaCorner.CornerRadius = UDim.new(0, 8)
     AbaCorner.Parent = Aba
     
     return Aba
 end
 
 -- Criar abas
-local AbaFarm = CriarAba("FARM", "⚔️", Color3.fromRGB(0, 150, 255), 0)
-local AbaBoss = CriarAba("BOSS", "👾", Color3.fromRGB(255, 100, 100), 125)
-local AbaQuest = CriarAba("QUEST", "📜", Color3.fromRGB(100, 255, 100), 250)
-local AbaConfig = CriarAba("CONFIG", "⚙️", Color3.fromRGB(200, 200, 0), 375)
+local AbaFarm = CriarAba("FARM", "⚔️", Cores.Azul, 0)
+local AbaNPC = CriarAba("ALVOS", "🎯", Cores.Verde, 135)
+local AbaBoss = CriarAba("BOSS", "👾", Cores.Vermelho, 270)
+local AbaQuest = CriarAba("QUEST", "📜", Cores.Amarelo, 405)
+local AbaConfig = CriarAba("CONFIG", "⚙️", Cores.Roxo, 540)
 
 -- ============================================
 -- [[ CONTEÚDO DAS ABAS ]]
 -- ============================================
 
 local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -20, 1, -100)
-ContentFrame.Position = UDim2.new(0, 10, 0, 90)
+ContentFrame.Size = UDim2.new(1, -20, 1, -120)
+ContentFrame.Position = UDim2.new(0, 10, 0, 100)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
 
 -- Função para criar container de aba
 local function CriarContainer(nome)
-    local Container = Instance.new("Frame")
+    local Container = Instance.new("ScrollingFrame")
     Container.Name = nome
     Container.Size = UDim2.new(1, 0, 1, 0)
     Container.BackgroundTransparency = 1
+    Container.BorderSizePixel = 0
+    Container.ScrollBarThickness = 5
+    Container.ScrollBarImageColor3 = Cores.Azul
+    Container.ScrollBarImageTransparency = 0.5
+    Container.CanvasSize = UDim2.new(0, 0, 0, 0)
+    Container.AutomaticCanvasSize = Enum.AutomaticSize.Y
     Container.Visible = false
     Container.Parent = ContentFrame
     return Container
@@ -367,6 +585,7 @@ end
 
 -- Containers
 local FarmContainer = CriarContainer("Farm")
+local NPCContainer = CriarContainer("NPC")
 local BossContainer = CriarContainer("Boss")
 local QuestContainer = CriarContainer("Quest")
 local ConfigContainer = CriarContainer("Config")
@@ -377,180 +596,158 @@ local ConfigContainer = CriarContainer("Config")
 
 -- Título
 local FarmTitle = Instance.new("TextLabel")
-FarmTitle.Size = UDim2.new(1, 0, 0, 30)
+FarmTitle.Size = UDim2.new(1, -10, 0, 35)
+FarmTitle.Position = UDim2.new(0, 5, 0, 5)
 FarmTitle.BackgroundTransparency = 1
 FarmTitle.Text = "⚔️ CONFIGURAÇÕES DE FARM"
-FarmTitle.TextColor3 = Color3.fromRGB(0, 200, 255)
+FarmTitle.TextColor3 = Cores.AzulClaro
 FarmTitle.TextSize = 18
 FarmTitle.Font = Enum.Font.SourceSansBold
 FarmTitle.TextXAlignment = Enum.TextXAlignment.Left
 FarmTitle.Parent = FarmContainer
 
--- Status do Farm
-local FarmStatus = Instance.new("TextLabel")
-FarmStatus.Size = UDim2.new(0, 200, 0, 30)
-FarmStatus.Position = UDim2.new(0, 0, 0, 40)
-FarmStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-FarmStatus.BackgroundTransparency = 0.3
-FarmStatus.Text = "🔴 AUTO FARM: OFF"
-FarmStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-FarmStatus.TextSize = 16
-FarmStatus.Font = Enum.Font.SourceSansBold
-FarmStatus.Parent = FarmContainer
+-- Interruptores
+CriarInterruptor(FarmContainer, 45, "Auto Farm", "AutoFarmAtivo")
+CriarInterruptor(FarmContainer, 90, "Auto Equipar Arma", "AutoEquiparArma")
+CriarInterruptor(FarmContainer, 135, "Auto Habilidades", "AutoUsarHabilidades")
 
-local FarmStatusCorner = Instance.new("UICorner")
-FarmStatusCorner.CornerRadius = UDim.new(0, 6)
-FarmStatusCorner.Parent = FarmStatus
+-- ============================================
+-- [[ ABA ALVOS (NPCs) ]]
+-- ============================================
 
--- Botão Ativar Farm
-local FarmToggle = Instance.new("TextButton")
-FarmToggle.Size = UDim2.new(0, 150, 0, 40)
-FarmToggle.Position = UDim2.new(0, 220, 0, 40)
-FarmToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-FarmToggle.Text = "ATIVAR FARM"
-FarmToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-FarmToggle.TextSize = 16
-FarmToggle.Font = Enum.Font.SourceSansBold
-FarmToggle.Parent = FarmContainer
+local NPCTitle = Instance.new("TextLabel")
+NPCTitle.Size = UDim2.new(1, -10, 0, 35)
+NPCTitle.Position = UDim2.new(0, 5, 0, 5)
+NPCTitle.BackgroundTransparency = 1
+NPCTitle.Text = "🎯 SELECIONAR ALVOS PARA FARMAR"
+NPCTitle.TextColor3 = Cores.Verde
+NPCTitle.TextSize = 18
+NPCTitle.Font = Enum.Font.SourceSansBold
+NPCTitle.TextXAlignment = Enum.TextXAlignment.Left
+NPCTitle.Parent = NPCContainer
 
-local FarmToggleCorner = Instance.new("UICorner")
-FarmToggleCorner.CornerRadius = UDim.new(0, 6)
-FarmToggleCorner.Parent = FarmToggle
+-- Botão para escanear NPCs próximos
+local ScanBtn = Instance.new("TextButton")
+ScanBtn.Size = UDim2.new(0, 200, 0, 40)
+ScanBtn.Position = UDim2.new(0, 5, 0, 45)
+ScanBtn.BackgroundColor3 = Cores.Azul
+ScanBtn.Text = "🔍 ESCANEAR NPCs PRÓXIMOS"
+ScanBtn.TextColor3 = Cores.Text
+ScanBtn.TextSize = 14
+ScanBtn.Font = Enum.Font.SourceSansBold
+ScanBtn.Parent = NPCContainer
 
-FarmToggle.MouseButton1Click:Connect(function()
-    getgenv().Config.AutoFarmAtivo = not getgenv().Config.AutoFarmAtivo
-    
-    if getgenv().Config.AutoFarmAtivo then
-        FarmStatus.Text = "🟢 AUTO FARM: ON"
-        FarmStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
-        FarmToggle.Text = "DESATIVAR FARM"
-        FarmToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        Notificar("AutoFarm", "Farm ativado!", 2)
-        task.spawn(LoopFarm)
-    else
-        FarmStatus.Text = "🔴 AUTO FARM: OFF"
-        FarmStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-        FarmToggle.Text = "ATIVAR FARM"
-        FarmToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        Notificar("AutoFarm", "Farm desativado!", 2)
+local ScanCorner = Instance.new("UICorner")
+ScanCorner.CornerRadius = UDim.new(0, 6)
+ScanCorner.Parent = ScanBtn
+
+-- Frame para lista de NPCs
+local NPCListFrame = Instance.new("Frame")
+NPCListFrame.Size = UDim2.new(1, -10, 0, 200)
+NPCListFrame.Position = UDim2.new(0, 5, 0, 95)
+NPCListFrame.BackgroundColor3 = Cores.Background3
+NPCListFrame.BackgroundTransparency = 0.3
+NPCListFrame.Parent = NPCContainer
+
+local NPCListCorner = Instance.new("UICorner")
+NPCListCorner.CornerRadius = UDim.new(0, 8)
+NPCListCorner.Parent = NPCListFrame
+
+-- Lista de NPCs (será preenchida dinamicamente)
+local NPCList = Instance.new("UIListLayout")
+NPCList.Padding = UDim.new(0, 5)
+NPCList.Parent = NPCListFrame
+
+-- Função para atualizar lista de NPCs
+local function AtualizarListaNPCs()
+    -- Limpar lista atual
+    for _, child in pairs(NPCListFrame:GetChildren()) do
+        if child:IsA("Frame") then
+            child:Destroy()
+        end
     end
-end)
+    
+    -- Escanear NPCs próximos
+    local npcs = EscanearNPCsProximos()
+    
+    for _, nome in ipairs(npcs) do
+        local item = Instance.new("Frame")
+        item.Size = UDim2.new(1, -10, 0, 35)
+        item.BackgroundColor3 = Cores.Background2
+        item.BackgroundTransparency = 0.2
+        item.Parent = NPCListFrame
+        
+        local itemCorner = Instance.new("UICorner")
+        itemCorner.CornerRadius = UDim.new(0, 4)
+        itemCorner.Parent = item
+        
+        local nomeLabel = Instance.new("TextLabel")
+        nomeLabel.Size = UDim2.new(0, 200, 1, 0)
+        nomeLabel.Position = UDim2.new(0, 10, 0, 0)
+        nomeLabel.BackgroundTransparency = 1
+        nomeLabel.Text = nome
+        nomeLabel.TextColor3 = Cores.Text
+        nomeLabel.TextSize = 14
+        nomeLabel.Font = Enum.Font.SourceSans
+        nomeLabel.TextXAlignment = Enum.TextXAlignment.Left
+        nomeLabel.Parent = item
+        
+        local selectBtn = Instance.new("TextButton")
+        selectBtn.Size = UDim2.new(0, 80, 0, 25)
+        selectBtn.Position = UDim2.new(1, -90, 0.5, -12.5)
+        selectBtn.BackgroundColor3 = Cores.Azul
+        selectBtn.Text = "SELECIONAR"
+        selectBtn.TextColor3 = Cores.Text
+        selectBtn.TextSize = 12
+        selectBtn.Font = Enum.Font.SourceSansBold
+        selectBtn.Parent = item
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 4)
+        btnCorner.Parent = selectBtn
+        
+        selectBtn.MouseButton1Click:Connect(function()
+            -- Adicionar à lista de alvos
+            local alvos = getgenv().Config.AlvosSelecionados
+            if not table.find(alvos, nome) then
+                table.insert(alvos, nome)
+                selectBtn.BackgroundColor3 = Cores.Verde
+                selectBtn.Text = "✓ SELECIONADO"
+                Notificar("Alvo Adicionado", nome .. " será farmado!", 2)
+            else
+                -- Remover da lista
+                for i, v in ipairs(alvos) do
+                    if v == nome then
+                        table.remove(alvos, i)
+                        break
+                    end
+                end
+                selectBtn.BackgroundColor3 = Cores.Azul
+                selectBtn.Text = "SELECIONAR"
+                Notificar("Alvo Removido", nome .. " removido da lista!", 2)
+            end
+        end)
+    end
+end
+
+ScanBtn.MouseButton1Click:Connect(AtualizarListaNPCs)
 
 -- ============================================
 -- [[ ABA BOSS ]]
 -- ============================================
 
 local BossTitle = Instance.new("TextLabel")
-BossTitle.Size = UDim2.new(1, 0, 0, 30)
+BossTitle.Size = UDim2.new(1, -10, 0, 35)
+BossTitle.Position = UDim2.new(0, 5, 0, 5)
 BossTitle.BackgroundTransparency = 1
 BossTitle.Text = "👾 CONFIGURAÇÕES DE BOSS"
-BossTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
+BossTitle.TextColor3 = Cores.Vermelho
 BossTitle.TextSize = 18
 BossTitle.Font = Enum.Font.SourceSansBold
 BossTitle.TextXAlignment = Enum.TextXAlignment.Left
 BossTitle.Parent = BossContainer
 
--- Status do Boss
-local BossStatus = Instance.new("TextLabel")
-BossStatus.Size = UDim2.new(0, 200, 0, 30)
-BossStatus.Position = UDim2.new(0, 0, 0, 40)
-BossStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-BossStatus.BackgroundTransparency = 0.3
-BossStatus.Text = "🔴 AUTO BOSS: OFF"
-BossStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-BossStatus.TextSize = 16
-BossStatus.Font = Enum.Font.SourceSansBold
-BossStatus.Parent = BossContainer
-
-local BossStatusCorner = Instance.new("UICorner")
-BossStatusCorner.CornerRadius = UDim.new(0, 6)
-BossStatusCorner.Parent = BossStatus
-
--- Botão Ativar Boss
-local BossToggle = Instance.new("TextButton")
-BossToggle.Size = UDim2.new(0, 150, 0, 40)
-BossToggle.Position = UDim2.new(0, 220, 0, 40)
-BossToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-BossToggle.Text = "ATIVAR BOSS"
-BossToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-BossToggle.TextSize = 16
-BossToggle.Font = Enum.Font.SourceSansBold
-BossToggle.Parent = BossContainer
-
-local BossToggleCorner = Instance.new("UICorner")
-BossToggleCorner.CornerRadius = UDim.new(0, 6)
-BossToggleCorner.Parent = BossToggle
-
-BossToggle.MouseButton1Click:Connect(function()
-    getgenv().Config.AutoBossAtivo = not getgenv().Config.AutoBossAtivo
-    
-    if getgenv().Config.AutoBossAtivo then
-        BossStatus.Text = "🟢 AUTO BOSS: ON"
-        BossStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
-        BossToggle.Text = "DESATIVAR BOSS"
-        BossToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        Notificar("AutoFarm", "Boss ativado!", 2)
-        task.spawn(LoopBoss)
-    else
-        BossStatus.Text = "🔴 AUTO BOSS: OFF"
-        BossStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-        BossToggle.Text = "ATIVAR BOSS"
-        BossToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        Notificar("AutoFarm", "Boss desativado!", 2)
-    end
-end)
-
--- ============================================
--- [[ ABA CONFIG ]]
--- ============================================
-
-local ConfigTitle = Instance.new("TextLabel")
-ConfigTitle.Size = UDim2.new(1, 0, 0, 30)
-ConfigTitle.BackgroundTransparency = 1
-ConfigTitle.Text = "⚙️ CONFIGURAÇÕES GERAIS"
-ConfigTitle.TextColor3 = Color3.fromRGB(200, 200, 0)
-ConfigTitle.TextSize = 18
-ConfigTitle.Font = Enum.Font.SourceSansBold
-ConfigTitle.TextXAlignment = Enum.TextXAlignment.Left
-ConfigTitle.Parent = ConfigContainer
-
--- Anti-AFK Toggle
-local AfkLabel = Instance.new("TextLabel")
-AfkLabel.Size = UDim2.new(0, 100, 0, 30)
-AfkLabel.Position = UDim2.new(0, 0, 0, 40)
-AfkLabel.BackgroundTransparency = 1
-AfkLabel.Text = "Anti-AFK:"
-AfkLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-AfkLabel.TextSize = 16
-AfkLabel.Font = Enum.Font.SourceSans
-AfkLabel.TextXAlignment = Enum.TextXAlignment.Left
-AfkLabel.Parent = ConfigContainer
-
-local AfkToggle = Instance.new("TextButton")
-AfkToggle.Size = UDim2.new(0, 80, 0, 30)
-AfkToggle.Position = UDim2.new(0, 120, 0, 40)
-AfkToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-AfkToggle.Text = "ON"
-AfkToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-AfkToggle.TextSize = 16
-AfkToggle.Font = Enum.Font.SourceSansBold
-AfkToggle.Parent = ConfigContainer
-
-local AfkCorner = Instance.new("UICorner")
-AfkCorner.CornerRadius = UDim.new(0, 4)
-AfkCorner.Parent = AfkToggle
-
-AfkToggle.MouseButton1Click:Connect(function()
-    getgenv().Config.AntiAfk = not getgenv().Config.AntiAfk
-    
-    if getgenv().Config.AntiAfk then
-        AfkToggle.Text = "ON"
-        AfkToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-    else
-        AfkToggle.Text = "OFF"
-        AfkToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-    end
-end)
+CriarInterruptor(BossContainer, 45, "Auto Boss", "AutoBossAtivo")
 
 -- ============================================
 -- [[ CONTROLE DE ABAS ]]
@@ -558,30 +755,41 @@ end)
 
 local function MostrarAba(aba)
     FarmContainer.Visible = (aba == "Farm")
+    NPCContainer.Visible = (aba == "NPC")
     BossContainer.Visible = (aba == "Boss")
     QuestContainer.Visible = (aba == "Quest")
     ConfigContainer.Visible = (aba == "Config")
     
     -- Resetar cores das abas
-    AbaFarm.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    AbaBoss.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    AbaQuest.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    AbaConfig.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    AbaFarm.BackgroundColor3 = Cores.Background3
+    AbaFarm.TextColor3 = Cores.TextDim
+    AbaNPC.BackgroundColor3 = Cores.Background3
+    AbaNPC.TextColor3 = Cores.TextDim
+    AbaBoss.BackgroundColor3 = Cores.Background3
+    AbaBoss.TextColor3 = Cores.TextDim
+    AbaQuest.BackgroundColor3 = Cores.Background3
+    AbaQuest.TextColor3 = Cores.TextDim
+    AbaConfig.BackgroundColor3 = Cores.Background3
+    AbaConfig.TextColor3 = Cores.TextDim
     
     -- Destacar aba selecionada
-    if aba == "Farm" then
-        AbaFarm.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-    elseif aba == "Boss" then
-        AbaBoss.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-    elseif aba == "Quest" then
-        AbaQuest.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-    elseif aba == "Config" then
-        AbaConfig.BackgroundColor3 = Color3.fromRGB(200, 200, 0)
+    local abaSelecionada = {
+        Farm = {AbaFarm, Cores.Azul},
+        NPC = {AbaNPC, Cores.Verde},
+        Boss = {AbaBoss, Cores.Vermelho},
+        Quest = {AbaQuest, Cores.Amarelo},
+        Config = {AbaConfig, Cores.Roxo},
+    }[aba]
+    
+    if abaSelecionada then
+        abaSelecionada[1].BackgroundColor3 = abaSelecionada[2]
+        abaSelecionada[1].TextColor3 = Cores.Text
     end
 end
 
 -- Conectar abas
 AbaFarm.MouseButton1Click:Connect(function() MostrarAba("Farm") end)
+AbaNPC.MouseButton1Click:Connect(function() MostrarAba("NPC") end)
 AbaBoss.MouseButton1Click:Connect(function() MostrarAba("Boss") end)
 AbaQuest.MouseButton1Click:Connect(function() MostrarAba("Quest") end)
 AbaConfig.MouseButton1Click:Connect(function() MostrarAba("Config") end)
@@ -598,7 +806,7 @@ Watermark.Size = UDim2.new(0, 200, 0, 20)
 Watermark.Position = UDim2.new(0, 10, 1, -25)
 Watermark.BackgroundTransparency = 1
 Watermark.Text = "⚓ AutoFarm v2 • By Dk"
-Watermark.TextColor3 = Color3.fromRGB(150, 150, 150)
+Watermark.TextColor3 = Cores.TextDim
 Watermark.TextSize = 12
 Watermark.Font = Enum.Font.SourceSans
 Watermark.TextXAlignment = Enum.TextXAlignment.Left
@@ -622,5 +830,6 @@ end)
 -- ============================================
 
 Notificar("⚓ Sailor Piece AutoFarm", "UI carregada! Pressione F4 para abrir/fechar", 5)
-print("=== AUTOFARM UI CARREGADA ===")
+print("=== AUTOFARM UI V2 CARREGADA ===")
 print("📌 Use F4 para abrir/fechar a interface")
+print("📌 Selecione NPCs específicos na aba ALVOS")
