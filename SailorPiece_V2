@@ -1,7 +1,6 @@
 --[[
-    AUTOFARM SAILOR PIECE - UI COMPLETA V3
-    Com interruptores azuis e seleção de NPCs
-    Versão CORRIGIDA
+    AUTOFARM SAILOR PIECE - VERSÃO COM MOVIMENTAÇÃO
+    Agora vai até os NPCs mesmo longe!
 ]]
 
 -- Aguardar jogo carregar
@@ -16,6 +15,7 @@ local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
+local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
@@ -34,6 +34,7 @@ local Cores = {
     Vermelho = Color3.fromRGB(255, 80, 80),
     Amarelo = Color3.fromRGB(255, 200, 0),
     Roxo = Color3.fromRGB(150, 100, 255),
+    Laranja = Color3.fromRGB(255, 150, 0),
 }
 
 -- ============================================
@@ -43,8 +44,13 @@ getgenv().Config = {
     -- Farm
     AutoFarmAtivo = false,
     DistanciaFarm = 8,
-    DistanciaVisao = 70,
-    AlvosSelecionados = {}, -- NPCs específicos para farmar
+    DistanciaVisao = 2000, -- Aumentado para 500 studs
+    DistanciaTeleporte = 100, -- Se estiver mais longe que isso, tenta teleportar
+    AlvosSelecionados = {},
+    
+    -- Movimentação
+    VelocidadeMovimento = 50, -- Velocidade máxima para se mover
+    UsarTeleporte = true, -- Tenta usar teleportes se disponível
     
     -- Arma
     ArmaSelecionada = "None",
@@ -98,6 +104,68 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- ============================================
+-- [[ FUNÇÕES DE MOVIMENTAÇÃO ]]
+-- ============================================
+
+-- Função para teleportar (se disponível no jogo)
+local function TeleportarPara(posicao)
+    local char = LocalPlayer.Character
+    if not char then return false end
+    
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
+    
+    -- Método 1: CFrames (funciona na maioria dos jogos)
+    pcall(function()
+        root.CFrame = CFrame.new(posicao)
+    end)
+    
+    -- Método 2: BodyVelocity (mais suave)
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity = (posicao - root.Position).Unit * 1000
+    bv.MaxForce = Vector3.new(1,1,1) * 9e9
+    bv.Parent = root
+    
+    task.wait(0.1)
+    bv:Destroy()
+    
+    return true
+end
+
+-- Função para mover até uma posição
+local function MoverAte(posicao)
+    local char = LocalPlayer.Character
+    if not char then return false end
+    
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not root then return false end
+    
+    -- Calcular distância
+    local distancia = (root.Position - posicao).Magnitude
+    
+    -- Se estiver muito longe e teleporte estiver ativado, tentar teleportar
+    if distancia > getgenv().Config.DistanciaTeleporte and getgenv().Config.UsarTeleporte then
+        TeleportarPara(posicao)
+        return true
+    end
+    
+    -- Mover caminhando
+    humanoid:MoveTo(posicao)
+    
+    -- Aguardar chegar perto
+    local tempoEspera = 0
+    while (root.Position - posicao).Magnitude > getgenv().Config.DistanciaFarm and tempoEspera < 10 do
+        task.wait(0.1)
+        tempoEspera = tempoEspera + 0.1
+        humanoid:MoveTo(posicao)
+    end
+    
+    return true
+end
+
+-- ============================================
 -- [[ FUNÇÕES DO AUTOFARM ]]
 -- ============================================
 
@@ -145,7 +213,7 @@ local function EMonstroValido(model)
     return hp.MaxHealth > 10
 end
 
--- Pegar monstro mais próximo
+-- Pegar monstro mais próximo (considerando TODA a distância)
 local function PegarMonstroMaisProximo()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
@@ -154,6 +222,7 @@ local function PegarMonstroMaisProximo()
     local menorDist = getgenv().Config.DistanciaVisao
     local alvo = nil
     
+    -- Procurar em TODO o workspace
     for _, obj in pairs(workspace:GetDescendants()) do
         if EMonstroValido(obj) then
             local dist = (root.Position - obj.HumanoidRootPart.Position).Magnitude
@@ -167,11 +236,9 @@ local function PegarMonstroMaisProximo()
     return alvo
 end
 
--- Função para escanear NPCs próximos
-local function EscanearNPCsProximos()
+-- Função para escanear TODOS os NPCs do jogo
+local function EscanearTodosNPCs()
     local npcsEncontrados = {}
-    local char = LocalPlayer.Character
-    if not char then return npcsEncontrados end
     
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
@@ -244,8 +311,10 @@ local function Atacar()
     return success
 end
 
--- Loop de Farm
+-- Loop de Farm MELHORADO - com movimentação automática
 local function LoopFarm()
+    Notificar("AutoFarm", "Farm ativado! Procurando alvos...", 2)
+    
     while getgenv().Config.AutoFarmAtivo do
         task.wait(0.1)
         
@@ -254,41 +323,62 @@ local function LoopFarm()
         if alvo and alvo:FindFirstChild("HumanoidRootPart") then
             local rootAlvo = alvo.HumanoidRootPart
             local hpAlvo = alvo:FindFirstChild("Humanoid")
+            local posAlvo = rootAlvo.Position
             
-            while getgenv().Config.AutoFarmAtivo and hpAlvo and hpAlvo.Health > 0 do
-                task.wait(0.05)
+            -- Verificar distância atual
+            local char = LocalPlayer.Character
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            
+            if root then
+                local distanciaAtual = (root.Position - posAlvo).Magnitude
                 
-                local char = LocalPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                
-                if root and rootAlvo then
-                    -- Equipar arma
-                    EquiparArma()
-                    
-                    -- Mover para o alvo
-                    root.CFrame = rootAlvo.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
-                    
-                    -- Atacar
-                    Atacar()
-                    
-                    -- Usar habilidades se ativado
-                    if getgenv().Config.AutoUsarHabilidades then
-                        local input = game:GetService("VirtualInputManager")
-                        local teclas = {"Z", "X", "C", "V"}
-                        for _, tecla in ipairs(teclas) do
-                            input:SendKeyEvent(true, tecla, false, game)
-                            task.wait(0.01)
-                            input:SendKeyEvent(false, tecla, false, game)
-                        end
-                    end
-                else
-                    break
+                -- Se estiver longe, mover até o alvo
+                if distanciaAtual > getgenv().Config.DistanciaFarm then
+                    Notificar("Movendo", "Indo até " .. alvo.Name .. " (" .. math.floor(distanciaAtual) .. " studs)", 1)
+                    MoverAte(posAlvo)
                 end
+                
+                -- Agora que está perto, atacar
+                while getgenv().Config.AutoFarmAtivo and hpAlvo and hpAlvo.Health > 0 do
+                    task.wait(0.05)
+                    
+                    char = LocalPlayer.Character
+                    root = char and char:FindFirstChild("HumanoidRootPart")
+                    
+                    if root and rootAlvo then
+                        -- Equipar arma
+                        EquiparArma()
+                        
+                        -- Ficar sempre na posição correta
+                        root.CFrame = rootAlvo.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
+                        
+                        -- Atacar
+                        Atacar()
+                        
+                        -- Usar habilidades se ativado
+                        if getgenv().Config.AutoUsarHabilidades then
+                            local input = game:GetService("VirtualInputManager")
+                            local teclas = {"Z", "X", "C", "V"}
+                            for _, tecla in ipairs(teclas) do
+                                input:SendKeyEvent(true, tecla, false, game)
+                                task.wait(0.01)
+                                input:SendKeyEvent(false, tecla, false, game)
+                            end
+                        end
+                    else
+                        break
+                    end
+                end
+                
+                Notificar("Alvo morto", "Procurando próximo alvo...", 1)
             end
         else
-            task.wait(0.5)
+            -- Se não encontrou alvo, esperar e procurar de novo
+            task.wait(2)
         end
     end
+    
+    Notificar("AutoFarm", "Farm desativado!", 2)
 end
 
 -- ============================================
@@ -303,7 +393,7 @@ local function CriarInterruptor(pai, posY, texto, configVar)
     
     -- Texto
     local Label = Instance.new("TextLabel")
-    Label.Size = UDim2.new(0, 200, 1, 0)
+    Label.Size = UDim2.new(0, 250, 1, 0)
     Label.BackgroundTransparency = 1
     Label.Text = texto
     Label.TextColor3 = Cores.Text
@@ -354,6 +444,7 @@ local function CriarInterruptor(pai, posY, texto, configVar)
                 Position = UDim2.new(1, -32, 0.5, -13),
                 BackgroundColor3 = Cores.Azul
             }):Play()
+            
             -- Iniciar loop se for AutoFarm
             if configVar == "AutoFarmAtivo" and estado then
                 task.spawn(LoopFarm)
@@ -371,6 +462,133 @@ local function CriarInterruptor(pai, posY, texto, configVar)
 end
 
 -- ============================================
+-- [[ FUNÇÃO PARA CRIAR SLIDER FUNCIONAL - VERSÃO DEFINITIVA ]]
+-- ============================================
+local function CriarSlider(pai, posY, texto, min, max, configVar, sufixo)
+    sufixo = sufixo or "studs"
+    
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(1, -20, 0, 80)
+    Frame.Position = UDim2.new(0, 10, 0, posY)
+    Frame.BackgroundColor3 = Cores.Background3
+    Frame.BackgroundTransparency = 0.3
+    Frame.Parent = pai
+    
+    local SliderCorner = Instance.new("UICorner")
+    SliderCorner.CornerRadius = UDim.new(0, 6)
+    SliderCorner.Parent = Frame
+    
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, -20, 0, 25)
+    Label.Position = UDim2.new(0, 10, 0, 5)
+    Label.BackgroundTransparency = 1
+    Label.Text = texto .. ": " .. getgenv().Config[configVar] .. " " .. sufixo
+    Label.TextColor3 = Cores.Text
+    Label.TextSize = 15
+    Label.Font = Enum.Font.SourceSans
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Frame
+    
+    -- Container da barra (para facilitar posicionamento)
+    local BarraContainer = Instance.new("Frame")
+    BarraContainer.Size = UDim2.new(1, -40, 0, 20)
+    BarraContainer.Position = UDim2.new(0, 20, 0, 40)
+    BarraContainer.BackgroundTransparency = 1
+    BarraContainer.Parent = Frame
+    
+    -- Barra do slider
+    local Barra = Instance.new("Frame")
+    Barra.Size = UDim2.new(1, 0, 0, 4)
+    Barra.Position = UDim2.new(0, 0, 0.5, -2)
+    Barra.BackgroundColor3 = Cores.Background2
+    Barra.BackgroundTransparency = 0.3
+    Barra.Parent = BarraContainer
+    
+    local BarraCorner = Instance.new("UICorner")
+    BarraCorner.CornerRadius = UDim.new(0, 2)
+    BarraCorner.Parent = Barra
+    
+    -- Botão do slider
+    local SliderBtn = Instance.new("TextButton")
+    SliderBtn.Size = UDim2.new(0, 20, 0, 20)
+    SliderBtn.Position = UDim2.new(0, -10, 0.5, -10)
+    SliderBtn.BackgroundColor3 = Cores.Azul
+    SliderBtn.Text = ""
+    SliderBtn.AutoButtonColor = false
+    SliderBtn.Parent = BarraContainer
+    
+    local SliderBtnCorner = Instance.new("UICorner")
+    SliderBtnCorner.CornerRadius = UDim.new(0, 10)
+    SliderBtnCorner.Parent = SliderBtn
+    
+    -- Botão invisível para capturar cliques na barra inteira
+    local ClickCatcher = Instance.new("TextButton")
+    ClickCatcher.Size = UDim2.new(1, 0, 1, 0)
+    ClickCatcher.BackgroundTransparency = 1
+    ClickCatcher.Text = ""
+    ClickCatcher.AutoButtonColor = false
+    ClickCatcher.Parent = BarraContainer
+    
+    -- Valor atual em porcentagem
+    local valorAtual = getgenv().Config[configVar]
+    local porcentagem = (valorAtual - min) / (max - min)
+    SliderBtn.Position = UDim2.new(porcentagem, -10, 0.5, -10)
+    
+    -- Variáveis para controle de arrasto
+    local arrastando = false
+    local conexaoMovimento = nil
+    local conexaoSoltar = nil
+    
+    -- Função para atualizar valor
+    local function atualizarValor(x)
+        local containerPos = BarraContainer.AbsolutePosition.X
+        local containerLargura = BarraContainer.AbsoluteSize.X
+        local novaPorcentagem = (x - containerPos) / containerLargura
+        novaPorcentagem = math.clamp(novaPorcentagem, 0, 1)
+        
+        local novoValor = math.floor(min + (max - min) * novaPorcentagem)
+        getgenv().Config[configVar] = novoValor
+        Label.Text = texto .. ": " .. novoValor .. " " .. sufixo
+        SliderBtn.Position = UDim2.new(novaPorcentagem, -10, 0.5, -10)
+    end
+    
+    -- Função para iniciar arrasto
+    local function iniciarArrasto(input)
+        arrastando = true
+        atualizarValor(input.Position.X)
+        
+        -- Conectar eventos de movimento e soltar
+        conexaoMovimento = UserInputService.InputChanged:Connect(function(inp)
+            if arrastando and inp.UserInputType == Enum.UserInputType.MouseMovement then
+                atualizarValor(inp.Position.X)
+            end
+        end)
+        
+        conexaoSoltar = UserInputService.InputEnded:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                arrastando = false
+                if conexaoMovimento then
+                    conexaoMovimento:Disconnect()
+                    conexaoMovimento = nil
+                end
+                if conexaoSoltar then
+                    conexaoSoltar:Disconnect()
+                    conexaoSoltar = nil
+                end
+            end
+        end)
+    end
+    
+    -- Evento no botão do slider
+    SliderBtn.MouseButton1Down:Connect(iniciarArrasto)
+    
+    -- Evento no catcher (barra inteira)
+    ClickCatcher.MouseButton1Down:Connect(iniciarArrasto)
+    
+    return Frame
+end
+
+-- ============================================
 -- [[ CRIAÇÃO DA UI ]]
 -- ============================================
 
@@ -383,8 +601,8 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- Frame principal
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 700, 0, 500)
-MainFrame.Position = UDim2.new(0.5, -350, 0.5, -250)
+MainFrame.Size = UDim2.new(0, 750, 0, 600)
+MainFrame.Position = UDim2.new(0.5, -375, 0.5, -300)
 MainFrame.BackgroundColor3 = Cores.Background
 MainFrame.BackgroundTransparency = 0.05
 MainFrame.BorderSizePixel = 0
@@ -426,9 +644,9 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, -50, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "⚓ SAILOR PIECE AUTOFARM v3"
+Title.Text = "⚓ SAILOR PIECE AUTOFARM v4 - COM MOVIMENTAÇÃO"
 Title.TextColor3 = Cores.AzulClaro
-Title.TextSize = 20
+Title.TextSize = 18
 Title.Font = Enum.Font.SourceSansBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = TitleBar
@@ -468,7 +686,7 @@ TabFrame.Parent = MainFrame
 -- Função para criar aba
 local function CriarAba(nome, icone, cor, posX)
     local Aba = Instance.new("TextButton")
-    Aba.Size = UDim2.new(0, 130, 0, 40)
+    Aba.Size = UDim2.new(0, 140, 0, 40)
     Aba.Position = UDim2.new(0, posX, 0, 0)
     Aba.BackgroundColor3 = Cores.Background3
     Aba.BackgroundTransparency = 0.3
@@ -488,10 +706,10 @@ end
 
 -- Criar abas
 local AbaFarm = CriarAba("FARM", "⚔️", Cores.Azul, 0)
-local AbaNPC = CriarAba("ALVOS", "🎯", Cores.Verde, 135)
-local AbaBoss = CriarAba("BOSS", "👾", Cores.Vermelho, 270)
-local AbaQuest = CriarAba("QUEST", "📜", Cores.Amarelo, 405)
-local AbaConfig = CriarAba("CONFIG", "⚙️", Cores.Roxo, 540)
+local AbaNPC = CriarAba("ALVOS", "🎯", Cores.Verde, 145)
+local AbaMov = CriarAba("MOV", "🏃", Cores.Laranja, 290)
+local AbaBoss = CriarAba("BOSS", "👾", Cores.Vermelho, 435)
+local AbaConfig = CriarAba("CONFIG", "⚙️", Cores.Roxo, 580)
 
 -- ============================================
 -- [[ CONTEÚDO DAS ABAS ]]
@@ -523,15 +741,14 @@ end
 -- Containers
 local FarmContainer = CriarContainer("Farm")
 local NPCContainer = CriarContainer("NPC")
+local MovContainer = CriarContainer("Mov")
 local BossContainer = CriarContainer("Boss")
-local QuestContainer = CriarContainer("Quest")
 local ConfigContainer = CriarContainer("Config")
 
 -- ============================================
 -- [[ ABA FARM ]]
 -- ============================================
 
--- Título
 local FarmTitle = Instance.new("TextLabel")
 FarmTitle.Size = UDim2.new(1, -10, 0, 35)
 FarmTitle.Position = UDim2.new(0, 5, 0, 5)
@@ -543,10 +760,42 @@ FarmTitle.Font = Enum.Font.SourceSansBold
 FarmTitle.TextXAlignment = Enum.TextXAlignment.Left
 FarmTitle.Parent = FarmContainer
 
--- Interruptores
-CriarInterruptor(FarmContainer, 45, "Auto Farm", "AutoFarmAtivo")
+CriarInterruptor(FarmContainer, 45, "Auto Farm (vai até os NPCs)", "AutoFarmAtivo")
 CriarInterruptor(FarmContainer, 90, "Auto Equipar Arma", "AutoEquiparArma")
 CriarInterruptor(FarmContainer, 135, "Auto Habilidades", "AutoUsarHabilidades")
+
+-- ============================================
+-- [[ ABA MOVIMENTAÇÃO ]]
+-- ============================================
+
+local MovTitle = Instance.new("TextLabel")
+MovTitle.Size = UDim2.new(1, -10, 0, 35)
+MovTitle.Position = UDim2.new(0, 5, 0, 5)
+MovTitle.BackgroundTransparency = 1
+MovTitle.Text = "🏃 CONFIGURAÇÕES DE MOVIMENTAÇÃO"
+MovTitle.TextColor3 = Cores.Laranja
+MovTitle.TextSize = 18
+MovTitle.Font = Enum.Font.SourceSansBold
+MovTitle.TextXAlignment = Enum.TextXAlignment.Left
+MovTitle.Parent = MovContainer
+
+-- Sliders FUNCIONAIS
+CriarSlider(MovContainer, 45, "👁️ Distância de Visão", 100, 2000, "DistanciaVisao", "studs")
+CriarSlider(MovContainer, 120, "📏 Distância de Teleporte", 50, 500, "DistanciaTeleporte", "studs")
+CriarInterruptor(MovContainer, 195, "🏃 Usar Teleporte (se disponível)", "UsarTeleporte")
+
+-- Informação
+local InfoLabel = Instance.new("TextLabel")
+InfoLabel.Size = UDim2.new(1, -20, 0, 50)
+InfoLabel.Position = UDim2.new(0, 10, 0, 250)
+InfoLabel.BackgroundTransparency = 1
+InfoLabel.Text = "💡 Quanto maior a distância de visão, mais longe o script procura por NPCs. Aumente para mapas grandes!"
+InfoLabel.TextColor3 = Cores.TextDim
+InfoLabel.TextSize = 13
+InfoLabel.Font = Enum.Font.SourceSans
+InfoLabel.TextWrapped = true
+InfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+InfoLabel.Parent = MovContainer
 
 -- ============================================
 -- [[ ABA ALVOS (NPCs) ]]
@@ -563,12 +812,12 @@ NPCTitle.Font = Enum.Font.SourceSansBold
 NPCTitle.TextXAlignment = Enum.TextXAlignment.Left
 NPCTitle.Parent = NPCContainer
 
--- Botão para escanear NPCs próximos
+-- Botão para escanear TODOS os NPCs do jogo
 local ScanBtn = Instance.new("TextButton")
-ScanBtn.Size = UDim2.new(0, 200, 0, 40)
+ScanBtn.Size = UDim2.new(0, 250, 0, 40)
 ScanBtn.Position = UDim2.new(0, 5, 0, 45)
 ScanBtn.BackgroundColor3 = Cores.Azul
-ScanBtn.Text = "🔍 ESCANEAR NPCs PRÓXIMOS"
+ScanBtn.Text = "🔍 ESCANEAR TODOS OS NPCs"
 ScanBtn.TextColor3 = Cores.Text
 ScanBtn.TextSize = 14
 ScanBtn.Font = Enum.Font.SourceSansBold
@@ -580,7 +829,7 @@ ScanCorner.Parent = ScanBtn
 
 -- Frame para lista de NPCs
 local NPCListFrame = Instance.new("Frame")
-NPCListFrame.Size = UDim2.new(1, -10, 0, 250)
+NPCListFrame.Size = UDim2.new(1, -10, 0, 350)
 NPCListFrame.Position = UDim2.new(0, 5, 0, 95)
 NPCListFrame.BackgroundColor3 = Cores.Background3
 NPCListFrame.BackgroundTransparency = 0.3
@@ -590,7 +839,7 @@ local NPCListCorner = Instance.new("UICorner")
 NPCListCorner.CornerRadius = UDim.new(0, 8)
 NPCListCorner.Parent = NPCListFrame
 
--- Lista de NPCs (será preenchida dinamicamente)
+-- Lista de NPCs
 local NPCList = Instance.new("UIListLayout")
 NPCList.Padding = UDim.new(0, 5)
 NPCList.Parent = NPCListFrame
@@ -604,14 +853,14 @@ local function AtualizarListaNPCs()
         end
     end
     
-    -- Escanear NPCs próximos
-    local npcs = EscanearNPCsProximos()
+    -- Escanear TODOS os NPCs
+    local npcs = EscanearTodosNPCs()
     
     if #npcs == 0 then
         local msg = Instance.new("TextLabel")
         msg.Size = UDim2.new(1, -10, 0, 50)
         msg.BackgroundTransparency = 1
-        msg.Text = "Nenhum NPC encontrado por perto!"
+        msg.Text = "Nenhum NPC encontrado no jogo!"
         msg.TextColor3 = Cores.TextDim
         msg.TextSize = 14
         msg.Font = Enum.Font.SourceSans
@@ -631,7 +880,7 @@ local function AtualizarListaNPCs()
         itemCorner.Parent = item
         
         local nomeLabel = Instance.new("TextLabel")
-        nomeLabel.Size = UDim2.new(0, 200, 1, 0)
+        nomeLabel.Size = UDim2.new(0, 250, 1, 0)
         nomeLabel.Position = UDim2.new(0, 10, 0, 0)
         nomeLabel.BackgroundTransparency = 1
         nomeLabel.Text = nome
@@ -679,13 +928,11 @@ local function AtualizarListaNPCs()
             end
             
             if encontrado then
-                -- Remover da lista
                 table.remove(alvos, pos)
                 selectBtn.BackgroundColor3 = Cores.Azul
                 selectBtn.Text = "SELECIONAR"
                 Notificar("Alvo Removido", nome .. " removido da lista!", 2)
             else
-                -- Adicionar à lista
                 table.insert(alvos, nome)
                 selectBtn.BackgroundColor3 = Cores.Verde
                 selectBtn.Text = "✓ SELECIONADO"
@@ -696,35 +943,6 @@ local function AtualizarListaNPCs()
 end
 
 ScanBtn.MouseButton1Click:Connect(AtualizarListaNPCs)
-
--- ============================================
--- [[ ABA BOSS ]]
--- ============================================
-
-local BossTitle = Instance.new("TextLabel")
-BossTitle.Size = UDim2.new(1, -10, 0, 35)
-BossTitle.Position = UDim2.new(0, 5, 0, 5)
-BossTitle.BackgroundTransparency = 1
-BossTitle.Text = "👾 CONFIGURAÇÕES DE BOSS"
-BossTitle.TextColor3 = Cores.Vermelho
-BossTitle.TextSize = 18
-BossTitle.Font = Enum.Font.SourceSansBold
-BossTitle.TextXAlignment = Enum.TextXAlignment.Left
-BossTitle.Parent = BossContainer
-
-CriarInterruptor(BossContainer, 45, "Auto Boss", "AutoBossAtivo")
-
--- Dropdown para tipo de boss
-local BossTipoLabel = Instance.new("TextLabel")
-BossTipoLabel.Size = UDim2.new(0, 150, 0, 30)
-BossTipoLabel.Position = UDim2.new(0, 10, 0, 90)
-BossTipoLabel.BackgroundTransparency = 1
-BossTipoLabel.Text = "Tipo de Boss:"
-BossTipoLabel.TextColor3 = Cores.Text
-BossTipoLabel.TextSize = 16
-BossTipoLabel.Font = Enum.Font.SourceSans
-BossTipoLabel.TextXAlignment = Enum.TextXAlignment.Left
-BossTipoLabel.Parent = BossContainer
 
 -- ============================================
 -- [[ ABA CONFIG ]]
@@ -750,8 +968,8 @@ CriarInterruptor(ConfigContainer, 45, "Anti-AFK", "AntiAfk")
 local function MostrarAba(aba)
     FarmContainer.Visible = (aba == "Farm")
     NPCContainer.Visible = (aba == "NPC")
+    MovContainer.Visible = (aba == "Mov")
     BossContainer.Visible = (aba == "Boss")
-    QuestContainer.Visible = (aba == "Quest")
     ConfigContainer.Visible = (aba == "Config")
     
     -- Resetar cores das abas
@@ -759,10 +977,10 @@ local function MostrarAba(aba)
     AbaFarm.TextColor3 = Cores.TextDim
     AbaNPC.BackgroundColor3 = Cores.Background3
     AbaNPC.TextColor3 = Cores.TextDim
+    AbaMov.BackgroundColor3 = Cores.Background3
+    AbaMov.TextColor3 = Cores.TextDim
     AbaBoss.BackgroundColor3 = Cores.Background3
     AbaBoss.TextColor3 = Cores.TextDim
-    AbaQuest.BackgroundColor3 = Cores.Background3
-    AbaQuest.TextColor3 = Cores.TextDim
     AbaConfig.BackgroundColor3 = Cores.Background3
     AbaConfig.TextColor3 = Cores.TextDim
     
@@ -773,12 +991,12 @@ local function MostrarAba(aba)
     elseif aba == "NPC" then
         AbaNPC.BackgroundColor3 = Cores.Verde
         AbaNPC.TextColor3 = Cores.Text
+    elseif aba == "Mov" then
+        AbaMov.BackgroundColor3 = Cores.Laranja
+        AbaMov.TextColor3 = Cores.Text
     elseif aba == "Boss" then
         AbaBoss.BackgroundColor3 = Cores.Vermelho
         AbaBoss.TextColor3 = Cores.Text
-    elseif aba == "Quest" then
-        AbaQuest.BackgroundColor3 = Cores.Amarelo
-        AbaQuest.TextColor3 = Cores.Text
     elseif aba == "Config" then
         AbaConfig.BackgroundColor3 = Cores.Roxo
         AbaConfig.TextColor3 = Cores.Text
@@ -788,8 +1006,8 @@ end
 -- Conectar abas
 AbaFarm.MouseButton1Click:Connect(function() MostrarAba("Farm") end)
 AbaNPC.MouseButton1Click:Connect(function() MostrarAba("NPC") end)
+AbaMov.MouseButton1Click:Connect(function() MostrarAba("Mov") end)
 AbaBoss.MouseButton1Click:Connect(function() MostrarAba("Boss") end)
-AbaQuest.MouseButton1Click:Connect(function() MostrarAba("Quest") end)
 AbaConfig.MouseButton1Click:Connect(function() MostrarAba("Config") end)
 
 -- Mostrar aba Farm por padrão
@@ -800,10 +1018,10 @@ MostrarAba("Farm")
 -- ============================================
 
 local Watermark = Instance.new("TextLabel")
-Watermark.Size = UDim2.new(0, 200, 0, 20)
+Watermark.Size = UDim2.new(0, 300, 0, 20)
 Watermark.Position = UDim2.new(0, 10, 1, -25)
 Watermark.BackgroundTransparency = 1
-Watermark.Text = "⚓ AutoFarm v3 • By Dk"
+Watermark.Text = "⚓ AutoFarm v4 • Com Sliders Funcionais • By Dk"
 Watermark.TextColor3 = Cores.TextDim
 Watermark.TextSize = 12
 Watermark.Font = Enum.Font.SourceSans
@@ -827,8 +1045,8 @@ end)
 -- [[ INICIALIZAÇÃO ]]
 -- ============================================
 
-Notificar("⚓ Sailor Piece AutoFarm v3", "UI carregada! Pressione F4 para abrir/fechar", 5)
-print("=== AUTOFARM UI V3 CARREGADA ===")
+Notificar("⚓ Sailor Piece AutoFarm v4", "Com sliders funcionais! Pressione F4", 5)
+print("=== AUTOFARM UI V4 CARREGADA ===")
+print("📌 AGORA VAI ATÉ OS NPCS MESMO LONGE!")
 print("📌 Use F4 para abrir/fechar a interface")
-print("📌 Selecione NPCs específicos na aba ALVOS")
-print("📌 Interruptores azuis = LIGADO | vermelhos = DESLIGADO")
+print("📌 Ajuste as distâncias na aba MOV - SLIDERS FUNCIONAIS!")
