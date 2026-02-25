@@ -1,19 +1,31 @@
 --[[
-    AutoFarm v2 para SailorPiece
-    Biblioteca: Sirius UI
-    Versão Corrigida v3
+    AUTOFARM SAILOR PIECE - UI COMPLETA
+    Interface profissional sem dependências externas
 ]]
 
--- ============================================
--- [[ CONFIGURAÇÕES GLOBAIS ]]
--- ============================================
+-- Aguardar jogo carregar
+repeat wait() until game:IsLoaded()
 
+-- ============================================
+-- [[ SERVIÇOS ]]
+-- ============================================
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- ============================================
+-- [[ CONFIGURAÇÕES ]]
+-- ============================================
 getgenv().Config = {
     -- Farm
     AutoFarmAtivo = false,
     DistanciaFarm = 8,
     DistanciaVisao = 70,
-    NPCstargetados = {},
     
     -- Arma
     ArmaSelecionada = "None",
@@ -23,7 +35,6 @@ getgenv().Config = {
     -- Quest
     AutoQuestAtivo = false,
     QuestSelecionada = 1,
-    ListaQuests = {},
     
     -- Boss
     AutoBossAtivo = false,
@@ -32,36 +43,28 @@ getgenv().Config = {
     
     -- Sistema
     AntiAfk = true,
+    Watermark = true,
 }
 
--- Lista de Chefes conhecidos
+-- Lista de Chefes
 local ListaChefes = {"Alucard", "Aizen", "Madoka", "Jinwoo", "Gojo", "Sukuna", "Yuji", "Cid"}
 
 -- ============================================
--- [[ BIBLIOTECA UI - SIRIUS ]]
+-- [[ FUNÇÕES DE NOTIFICAÇÃO ]]
 -- ============================================
-
-local Sirius = loadstring(game:HttpGet('https://sirius.menu/sirius'))()
-
-local Window = Sirius:CreateWindow({
-    Title = "[SailorPiece AutoFarm v2] By.Dk",
-    Theme = "Dark",
-    Center = true,
-    DragToggle = true,
-})
-
--- ============================================
--- [[ SISTEMA DE NOTIFICAÇÃO ]]
--- ============================================
-
-Sirius:Notify({ Title = "Sistema Carregado", Content = "Dk te da oi", Duration = 5 })
+local function Notificar(titulo, texto, tempo)
+    tempo = tempo or 3
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = titulo,
+        Text = texto,
+        Duration = tempo
+    })
+end
 
 -- ============================================
--- [[ SISTEMA ANTI-AFK ]]
+-- [[ ANTI-AFK ]]
 -- ============================================
-
-local VirtualUser = game:GetService("VirtualUser")
-game.Players.LocalPlayer.Idled:Connect(function()
+LocalPlayer.Idled:Connect(function()
     if getgenv().Config.AntiAfk then
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new(0,0))
@@ -69,253 +72,81 @@ game.Players.LocalPlayer.Idled:Connect(function()
 end)
 
 -- ============================================
--- [[ FUNÇÕES AUXILIARES ]]
+-- [[ FUNÇÕES DO AUTOFARM ]]
 -- ============================================
 
--- Função: ÉNPCDeQuest - Verifica se é NPC de quest
-local function ENPCDeQuest(model)
-    if not model then return false end
-    
-    local nome = model.Name:lower()
-    local npcsQuest = {"quest", "giver", "npc", "merchant", "tutor", "guide", "quest giver"}
-    
-    for _, palavra in ipairs(npcsQuest) do
-        if nome:find(palavra) then
-            return true
-        end
-    end
-    
-    return false
-end
-
--- Função: ÉMonstro - Verifica se é monstro atacável
+-- Verificar se é monstro
 local function EMonstro(model)
     if not model then return false end
-    
-    if model == game.Players.LocalPlayer.Character then return false end
+    if model == LocalPlayer.Character then return false end
     
     local hp = model:FindFirstChild("Humanoid")
-    local rootPart = model:FindFirstChild("HumanoidRootPart")
+    local root = model:FindFirstChild("HumanoidRootPart")
     
-    if not hp or not rootPart then return false end
+    if not hp or not root then return false end
     if hp.Health <= 0 then return false end
     
-    if ENPCDeQuest(model) then return false end
-    
+    -- Ignorar NPCs de quest
     local nome = model.Name:lower()
-    for _, boss in ipairs(ListaChefes) do
-        if nome:find(boss:lower()) then
-            return true
-        end
+    if nome:find("quest") or nome:find("npc") or nome:find("merchant") then
+        return false
     end
     
     return hp.MaxHealth > 10
 end
 
--- Função: PegarMonstrosProximos
-local function PegarMonstrosProximos()
-    local monstros = {}
-    local personagem = game.Players.LocalPlayer.Character
-    
-    if not personagem or not personagem:FindFirstChild("HumanoidRootPart") then
-        return {"Nenhum"}
-    end
-    
-    for _, objeto in pairs(game.Workspace:GetDescendants()) do
-        if EMonstro(objeto) then
-            local distancia = (personagem.HumanoidRootPart.Position - objeto.HumanoidRootPart.Position).Magnitude
-            if distancia <= getgenv().Config.DistanciaVisao then
-                table.insert(monstros, objeto.Name)
-            end
-        end
-    end
-    
-    if #monstros == 0 then
-        table.insert(monstros, "Nenhum")
-    end
-    
-    return monstros
-end
-
--- Função: PegarArmasInventario
-local function PegarArmasInventario()
-    local armas = {"None"}
-    
-    pcall(function()
-        local backpack = game.Players.LocalPlayer.Backpack
-        local character = game.Players.LocalPlayer.Character
-        
-        for _, ferramenta in pairs(backpack:GetChildren()) do
-            if ferramenta:IsA("Tool") then
-                table.insert(armas, ferramenta.Name)
-            end
-        end
-        
-        if character then
-            for _, ferramenta in pairs(character:GetChildren()) do
-                if ferramenta:IsA("Tool") then
-                    table.insert(armas, ferramenta.Name)
-                end
-            end
-        end
-    end)
-    
-    return armas
-end
-
--- Função: EquiparArma
-local function EquiparArma()
-    pcall(function()
-        if getgenv().Config.AutoEquiparArma and getgenv().Config.ArmaSelecionada ~= "None" then
-            local personagem = game.Players.LocalPlayer.Character
-            local backpack = game.Players.LocalPlayer.Backpack
-            
-            if personagem and not personagem:FindFirstChild(getgenv().Config.ArmaSelecionada) then
-                local arma = backpack:FindFirstChild(getgenv().Config.ArmaSelecionada)
-                if arma then
-                    personagem.Humanoid:EquipTool(arma)
-                end
-            end
-        end
-    end)
-end
-
--- Função: AtacarAlvo
-local function AtacarAlvo()
-    pcall(function()
-        local remote = game:GetService("ReplicatedStorage"):WaitForChild("CombatSystem"):WaitForChild("Remotes"):WaitForChild("RequestHit")
-        
-        if remote then
-            remote:FireServer()
-            
-            if getgenv().Config.AutoUsarHabilidades then
-                local input = game:GetService("VirtualInputManager")
-                local teclas = {"Z", "X", "C", "V", "F"}
-                
-                for _, tecla in ipairs(teclas) do
-                    input:SendKeyEvent(true, tecla, false, game)
-                    task.wait(0.01)
-                    input:SendKeyEvent(false, tecla, false, game)
-                end
-            end
-        end
-    end)
-end
-
--- Função: PegarMonstroMaisProximo
+-- Pegar monstro mais próximo
 local function PegarMonstroMaisProximo()
-    local personagem = game.Players.LocalPlayer.Character
-    if not personagem or not personagem:FindFirstChild("HumanoidRootPart") then
-        return nil
-    end
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
     
-    local rootPersonagem = personagem.HumanoidRootPart
-    local menorDistancia = getgenv().Config.DistanciaVisao
-    local alvoProximo = nil
+    local root = char.HumanoidRootPart
+    local menorDist = getgenv().Config.DistanciaVisao
+    local alvo = nil
     
-    local npcsSelecionados = getgenv().Config.NPCstargetados
-    
-    for _, objeto in pairs(game.Workspace:GetDescendants()) do
-        if EMonstro(objeto) then
-            local eSelecionado = false
-            
-            if npcsSelecionados and #npcsSelecionados > 0 then
-                for _, nomeSelecionado in ipairs(npcsSelecionados) do
-                    if objeto.Name == nomeSelecionado then
-                        eSelecionado = true
-                        break
-                    end
-                end
-            end
-            
-            if (npcsSelecionados == nil or #npcsSelecionados == 0) or eSelecionado then
-                local distancia = (rootPersonagem.Position - objeto.HumanoidRootPart.Position).Magnitude
-                if distancia < menorDistancia then
-                    menorDistancia = distancia
-                    alvoProximo = objeto
-                end
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if EMonstro(obj) then
+            local dist = (root.Position - obj.HumanoidRootPart.Position).Magnitude
+            if dist < menorDist then
+                menorDist = dist
+                alvo = obj
             end
         end
     end
     
-    return alvoProximo
+    return alvo
 end
 
--- Função: PegarChefeProximo
-local function PegarChefeProximo()
-    local personagem = game.Players.LocalPlayer.Character
-    if not personagem or not personagem:FindFirstChild("HumanoidRootPart") then
-        return nil
-    end
+-- Equipar arma
+local function EquiparArma()
+    if not getgenv().Config.AutoEquiparArma then return end
+    if getgenv().Config.ArmaSelecionada == "None" then return end
     
-    for _, objeto in pairs(game.Workspace:GetDescendants()) do
-        if EMonstro(objeto) then
-            if objeto ~= personagem and objeto.Humanoid.Health > 0 then
-                if objeto.Humanoid.MaxHealth > 1000 then
-                    local distancia = (personagem.HumanoidRootPart.Position - objeto.HumanoidRootPart.Position).Magnitude
-                    if distancia <= getgenv().Config.DistanciaVisao then
-                        return objeto
-                    end
-                end
-            end
+    local char = LocalPlayer.Character
+    local backpack = LocalPlayer.Backpack
+    
+    if char and not char:FindFirstChild(getgenv().Config.ArmaSelecionada) then
+        local arma = backpack:FindFirstChild(getgenv().Config.ArmaSelecionada)
+        if arma then
+            char.Humanoid:EquipTool(arma)
         end
     end
-    
-    return nil
 end
 
--- ============================================
--- [[ SISTEMA DE QUEST ]]
--- ============================================
-
--- Função: PegarQuestsDisponiveis
-local function PegarQuestsDisponiveis()
-    local quests = {"1"}
-    
+-- Atacar
+local function Atacar()
     pcall(function()
-        local remotestorage = game:GetService("ReplicatedStorage")
-        local questfolder = remotestorage:FindFirstChild("Quests") or workspace:FindFirstChild("Quests")
-        
-        if questfolder then
-            quests = {}
-            for _, quest in ipairs(questfolder:GetChildren()) do
-                table.insert(quests, quest.Name)
-            end
-        end
-        
-        if #quests == 0 then
-            quests = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}
-        end
-    end)
-    
-    if #quests == 0 then
-        quests = {"1"}
-    end
-    
-    return quests
-end
-
--- Função: AceitarQuest
-local function AceitarQuest()
-    pcall(function()
-        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes") or game:GetService("ReplicatedStorage"):FindFirstChild("AcceptQuest")
-        
+        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
         if remote then
-            local acceptRemote = remote:FindFirstChild("AcceptQuest") or remote:FindFirstChild("Accept")
-            if acceptRemote then
-                acceptRemote:FireServer(tonumber(getgenv().Config.QuestSelecionada) or 1)
-                Notificar("Quest", "Quest #" .. tostring(getgenv().Config.QuestSelecionada) .. " aceita!", 3)
+            local hitRemote = remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit")
+            if hitRemote then
+                hitRemote:FireServer()
             end
         end
-        
-        Notificar("Quest", "Tentando aceitar quest #" .. tostring(getgenv().Config.QuestSelecionada), 3)
     end)
 end
 
--- ============================================
--- [[ LOOPS DE FARM ]]
--- ============================================
-
+-- Loop de Farm
 local function LoopFarm()
     while getgenv().Config.AutoFarmAtivo do
         task.wait(0.1)
@@ -324,68 +155,68 @@ local function LoopFarm()
         
         if alvo and alvo:FindFirstChild("HumanoidRootPart") then
             local rootAlvo = alvo.HumanoidRootPart
-            local humanoideAlvo = alvo:FindFirstChild("Humanoid")
+            local hpAlvo = alvo:FindFirstChild("Humanoid")
             
-            while getgenv().Config.AutoFarmAtivo and humanoideAlvo and humanoideAlvo.Health > 0 do
+            while getgenv().Config.AutoFarmAtivo and hpAlvo and hpAlvo.Health > 0 do
                 task.wait(0.01)
                 
-                local char = game.Players.LocalPlayer.Character
+                local char = LocalPlayer.Character
                 local root = char and char:FindFirstChild("HumanoidRootPart")
                 
                 if root and rootAlvo then
                     EquiparArma()
-                    
-                    root.Velocity = Vector3.new(0, 0, 0)
-                    root.RotVelocity = Vector3.new(0, 0, 0)
-                    
-                    root.CFrame = rootAlvo.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    
-                    AtacarAlvo()
+                    root.CFrame = rootAlvo.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
+                    Atacar()
                 else
                     break
                 end
             end
-        else
-            task.wait(0.5)
         end
     end
 end
 
+-- Loop de Boss
 local function LoopBoss()
     while getgenv().Config.AutoBossAtivo do
         task.wait(1)
         
         pcall(function()
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("TeleportToPortal"):FireServer("Shinjuku")
+            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+            if remote then
+                remote:FindFirstChild("TeleportToPortal"):FireServer("Shinjuku")
+            end
         end)
         
         task.wait(2)
         
         pcall(function()
-            local args = {[1] = getgenv().Config.BossSelecionado, [2] = getgenv().Config.DificuldadeBoss}
-            game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("RequestSpawnStrongestBoss"):FireServer(unpack(args))
+            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
+            if remote then
+                remote:FindFirstChild("RequestSpawnStrongestBoss"):FireServer(
+                    getgenv().Config.BossSelecionado,
+                    getgenv().Config.DificuldadeBoss
+                )
+            end
         end)
         
         while getgenv().Config.AutoBossAtivo do
             task.wait(0.05)
             
-            local boss = PegarChefeProximo()
-            if boss then
-                local char = game.Players.LocalPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
-                local bossRoot = boss:FindFirstChild("HumanoidRootPart")
-                
-                if root and bossRoot then
-                    EquiparArma()
-                    root.CFrame = bossRoot.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-                    AtacarAlvo()
+            local char = LocalPlayer.Character
+            if not char then break end
+            
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if EMonstro(obj) and obj.Humanoid.MaxHealth > 1000 then
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    local bossRoot = obj:FindFirstChild("HumanoidRootPart")
+                    
+                    if root and bossRoot then
+                        EquiparArma()
+                        root.CFrame = bossRoot.CFrame * CFrame.new(0, getgenv().Config.DistanciaFarm, 0)
+                        Atacar()
+                    end
+                    break
                 end
-            else
-                task.wait(3)
-                pcall(function()
-                    local args = {[1] = getgenv().Config.BossSelecionado, [2] = getgenv().Config.DificuldadeBoss}
-                    game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("RequestSpawnStrongestBoss"):FireServer(unpack(args))
-                end)
             end
         end
     end
@@ -395,256 +226,401 @@ end
 -- [[ CRIAÇÃO DA UI ]]
 -- ============================================
 
-local TabFarm = Window:AddTab("Auto Farm")
+-- ScreenGui principal
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SailorAutoFarm"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-TabFarm:AddSection("Farm de Monstros")
+-- Frame principal
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 600, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -300, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
 
-TabFarm:AddButton({
-    Name = "Atualizar Monstros Proximos",
-    Callback = function()
-        local monstros = PegarMonstrosProximos()
-        Notificar("Monstros", "Encontrados: " .. #monstros, 3)
-    end,
-})
+-- Borda arredondada
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
 
-TabFarm:AddToggle({
-    Name = "Ativar Auto Farm",
-    Default = false,
-    Callback = function(Valor)
-        getgenv().Config.AutoFarmAtivo = Valor
-        if Valor then
-            task.spawn(LoopFarm)
-            Notificar("Farm", "Auto Farm ativado!", 3)
-        else
-            Notificar("Farm", "Auto Farm desativado", 3)
-        end
-    end,
-})
+-- Sombra
+local MainShadow = Instance.new("ImageLabel")
+MainShadow.Size = UDim2.new(1, 20, 1, 20)
+MainShadow.Position = UDim2.new(0, -10, 0, -10)
+MainShadow.BackgroundTransparency = 1
+MainShadow.Image = "rbxassetid://1316045217"
+MainShadow.ImageColor3 = Color3.new(0, 0, 0)
+MainShadow.ImageTransparency = 0.7
+MainShadow.ScaleType = Enum.ScaleType.Slice
+MainShadow.SliceCenter = Rect.new(10, 10, 10, 10)
+MainShadow.Parent = MainFrame
+MainShadow.ZIndex = -1
 
-local TabQuest = Window:AddTab("Auto Quest")
+-- Barra de título
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
 
-TabQuest:AddSection("Configuracao de Quest")
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = TitleBar
 
-TabQuest:AddDropdown({
-    Name = "Selecionar Quest",
-    Options = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"},
-    Default = "1",
-    Callback = function(Valor)
-        getgenv().Config.QuestSelecionada = tonumber(Valor) or 1
-    end,
-})
+-- Título
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -50, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "⚓ SAILOR PIECE AUTOFARM v2"
+Title.TextColor3 = Color3.fromRGB(0, 200, 255)
+Title.TextSize = 18
+Title.Font = Enum.Font.SourceSansBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TitleBar
 
-TabQuest:AddButton({
-    Name = "Aceitar Quest Selecionada",
-    Callback = function()
-        AceitarQuest()
-    end,
-})
+-- Botão fechar
+local CloseBtn = Instance.new("ImageButton")
+CloseBtn.Size = UDim2.new(0, 25, 0, 25)
+CloseBtn.Position = UDim2.new(1, -30, 0, 7)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Image = "rbxassetid://9134770786"
+CloseBtn.ImageColor3 = Color3.fromRGB(200, 200, 200)
+CloseBtn.ImageTransparency = 0.5
+CloseBtn.Parent = TitleBar
 
-TabQuest:AddToggle({
-    Name = "Auto Aceitar Quest",
-    Default = false,
-    Callback = function(Valor)
-        getgenv().Config.AutoQuestAtivo = Valor
-        if Valor then
-            AceitarQuest()
-        end
-    end,
-})
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
 
-local TabBoss = Window:AddTab("Auto Boss")
+CloseBtn.MouseEnter:Connect(function()
+    TweenService:Create(CloseBtn, TweenInfo.new(0.2), {ImageTransparency = 0}):Play()
+end)
 
-TabBoss:AddSection("Farm de Chefes")
-
-TabBoss:AddDropdown({
-    Name = "Tipo de Boss",
-    Options = {"StrongestToday", "StrongestHistory"},
-    Default = "StrongestToday",
-    Callback = function(Valor)
-        getgenv().Config.BossSelecionado = Valor
-    end,
-})
-
-TabBoss:AddDropdown({
-    Name = "Dificuldade",
-    Options = {"Normal", "Medium", "Hard", "Extreme"},
-    Default = "Normal",
-    Callback = function(Valor)
-        getgenv().Config.DificuldadeBoss = Valor
-    end,
-})
-
-TabBoss:AddToggle({
-    Name = "Ativar Auto Boss",
-    Default = false,
-    Callback = function(Valor)
-        getgenv().Config.AutoBossAtivo = Valor
-        if Valor then
-            task.spawn(LoopBoss)
-            Notificar("Boss", "Auto Boss ativado!", 3)
-        end
-    end,
-})
-
-local TabConfig = Window:AddTab("Configuracoes")
-
-TabConfig:AddSection("Protecao")
-
-TabConfig:AddToggle({
-    Name = "Anti-AFK",
-    Default = true,
-    Callback = function(Valor)
-        getgenv().Config.AntiAfk = Valor
-    end,
-})
-
-TabConfig:AddSection("Combate")
-
-TabConfig:AddDropdown({
-    Name = "Selecionar Arma",
-    Options = PegarArmasInventario(),
-    Callback = function(Valor)
-        getgenv().Config.ArmaSelecionada = Valor
-    end,
-})
-
-TabConfig:AddButton({
-    Name = "Atualizar Armas",
-    Callback = function()
-        Notificar("Armas", "Lista atualizada!", 2)
-    end,
-})
-
-TabConfig:AddToggle({
-    Name = "Auto Equipar Arma",
-    Default = false,
-    Callback = function(Valor)
-        getgenv().Config.AutoEquiparArma = Valor
-    end,
-})
-
-TabConfig:AddToggle({
-    Name = "Auto Habilidades (Z,X,C,V,F)",
-    Default = false,
-    Callback = function(Valor)
-        getgenv().Config.AutoUsarHabilidades = Valor
-    end,
-})
-
-TabConfig:AddSection("Distancias")
-
-TabConfig:AddSlider({
-    Name = "Distancia de Ataque",
-    Min = 0,
-    Max = 15,
-    Default = 8,
-    Callback = function(Valor)
-        getgenv().Config.DistanciaFarm = Valor
-    end,
-})
-
-TabConfig:AddSlider({
-    Name = "Distancia de Visao",
-    Min = 10,
-    Max = 500,
-    Default = 70,
-    Callback = function(Valor)
-        getgenv().Config.DistanciaVisao = Valor
-    end,
-})
+CloseBtn.MouseLeave:Connect(function()
+    TweenService:Create(CloseBtn, TweenInfo.new(0.2), {ImageTransparency = 0.5}):Play()
+end)
 
 -- ============================================
--- [[ MODIFICAÇÃO DO BOTÃO DE MÚSICA ]]
+-- [[ CRIAÇÃO DAS ABAS ]]
 -- ============================================
 
--- Aguardar o Sirius carregar completamente
-task.wait(5)
+local TabFrame = Instance.new("Frame")
+TabFrame.Size = UDim2.new(1, -20, 0, 40)
+TabFrame.Position = UDim2.new(0, 10, 0, 45)
+TabFrame.BackgroundTransparency = 1
+TabFrame.Parent = MainFrame
 
--- Função para modificar o botão de música
-local function modificarBotaoMusica()
-    -- Procurar o Sirius
-    local siriusGUI = game:GetService("CoreGui"):FindFirstChild("Sirius")
-    if not siriusGUI then return false end
+-- Função para criar aba
+local function CriarAba(nome, icone, cor, posX)
+    local Aba = Instance.new("TextButton")
+    Aba.Size = UDim2.new(0, 120, 0, 35)
+    Aba.Position = UDim2.new(0, posX, 0, 0)
+    Aba.BackgroundColor3 = cor or Color3.fromRGB(40, 40, 40)
+    Aba.BackgroundTransparency = 0.3
+    Aba.Text = icone .. " " .. nome
+    Aba.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Aba.TextSize = 16
+    Aba.Font = Enum.Font.SourceSansBold
+    Aba.BorderSizePixel = 0
+    Aba.Parent = TabFrame
     
-    local smartBar = siriusGUI:FindFirstChild("SmartBar")
-    if not smartBar then return false end
+    local AbaCorner = Instance.new("UICorner")
+    AbaCorner.CornerRadius = UDim.new(0, 6)
+    AbaCorner.Parent = Aba
     
-    local buttons = smartBar:FindFirstChild("Buttons")
-    if not buttons then return false end
-    
-    local musicButton = buttons:FindFirstChild("Music")
-    if not musicButton then return false end
-    
-    -- Verificar se já foi modificado
-    if musicButton:FindFirstChild("AutoFarmButton") then
-        return true
-    end
-    
-    -- Desabilitar o botão original
-    if musicButton:FindFirstChild("Interact") then
-        musicButton.Interact.Active = false
-        musicButton.Interact.Visible = false
-    end
-    
-    -- Criar novo botão por cima
-    local novoBotao = Instance.new("TextButton")
-    novoBotao.Name = "AutoFarmButton"
-    novoBotao.Size = UDim2.new(1, 0, 1, 0)
-    novoBotao.BackgroundTransparency = 1
-    novoBotao.Text = ""
-    novoBotao.ZIndex = 10
-    novoBotao.Parent = musicButton
-    
-    -- Adicionar função
-    novoBotao.MouseButton1Click:Connect(function()
-        -- Feedback visual
-        musicButton:TweenSize(UDim2.new(0, 28, 0, 28), "Out", "Quint", 0.2, true)
-        task.wait(0.15)
-        musicButton:TweenSize(UDim2.new(0, 36, 0, 36), "Out", "Quint", 0.25, true)
-        
-        -- Ativar/desativar auto farm
-        getgenv().Config.AutoFarmAtivo = not getgenv().Config.AutoFarmAtivo
-        
-        -- Notificação
-        if Sirius and Sirius.Notify then
-            Sirius:Notify({ 
-                Title = "AutoFarm", 
-                Content = "Auto Farm " .. (getgenv().Config.AutoFarmAtivo and "ATIVADO!" or "DESATIVADO!"), 
-                Duration = 3 
-            })
-        end
-        
-        -- Iniciar loop se ativado
-        if getgenv().Config.AutoFarmAtivo then
-            task.spawn(LoopFarm)
-        end
-    end)
-    
-    print("✅ Botão de música modificado!")
-    return true
+    return Aba
 end
 
--- Tentar modificar o botão
-task.spawn(function()
-    local tentativas = 0
-    while tentativas < 20 do
-        task.wait(1)
-        if modificarBotaoMusica() then
-            break
-        end
-        tentativas = tentativas + 1
+-- Criar abas
+local AbaFarm = CriarAba("FARM", "⚔️", Color3.fromRGB(0, 150, 255), 0)
+local AbaBoss = CriarAba("BOSS", "👾", Color3.fromRGB(255, 100, 100), 125)
+local AbaQuest = CriarAba("QUEST", "📜", Color3.fromRGB(100, 255, 100), 250)
+local AbaConfig = CriarAba("CONFIG", "⚙️", Color3.fromRGB(200, 200, 0), 375)
+
+-- ============================================
+-- [[ CONTEÚDO DAS ABAS ]]
+-- ============================================
+
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, -20, 1, -100)
+ContentFrame.Position = UDim2.new(0, 10, 0, 90)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+-- Função para criar container de aba
+local function CriarContainer(nome)
+    local Container = Instance.new("Frame")
+    Container.Name = nome
+    Container.Size = UDim2.new(1, 0, 1, 0)
+    Container.BackgroundTransparency = 1
+    Container.Visible = false
+    Container.Parent = ContentFrame
+    return Container
+end
+
+-- Containers
+local FarmContainer = CriarContainer("Farm")
+local BossContainer = CriarContainer("Boss")
+local QuestContainer = CriarContainer("Quest")
+local ConfigContainer = CriarContainer("Config")
+
+-- ============================================
+-- [[ ABA FARM ]]
+-- ============================================
+
+-- Título
+local FarmTitle = Instance.new("TextLabel")
+FarmTitle.Size = UDim2.new(1, 0, 0, 30)
+FarmTitle.BackgroundTransparency = 1
+FarmTitle.Text = "⚔️ CONFIGURAÇÕES DE FARM"
+FarmTitle.TextColor3 = Color3.fromRGB(0, 200, 255)
+FarmTitle.TextSize = 18
+FarmTitle.Font = Enum.Font.SourceSansBold
+FarmTitle.TextXAlignment = Enum.TextXAlignment.Left
+FarmTitle.Parent = FarmContainer
+
+-- Status do Farm
+local FarmStatus = Instance.new("TextLabel")
+FarmStatus.Size = UDim2.new(0, 200, 0, 30)
+FarmStatus.Position = UDim2.new(0, 0, 0, 40)
+FarmStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+FarmStatus.BackgroundTransparency = 0.3
+FarmStatus.Text = "🔴 AUTO FARM: OFF"
+FarmStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+FarmStatus.TextSize = 16
+FarmStatus.Font = Enum.Font.SourceSansBold
+FarmStatus.Parent = FarmContainer
+
+local FarmStatusCorner = Instance.new("UICorner")
+FarmStatusCorner.CornerRadius = UDim.new(0, 6)
+FarmStatusCorner.Parent = FarmStatus
+
+-- Botão Ativar Farm
+local FarmToggle = Instance.new("TextButton")
+FarmToggle.Size = UDim2.new(0, 150, 0, 40)
+FarmToggle.Position = UDim2.new(0, 220, 0, 40)
+FarmToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+FarmToggle.Text = "ATIVAR FARM"
+FarmToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+FarmToggle.TextSize = 16
+FarmToggle.Font = Enum.Font.SourceSansBold
+FarmToggle.Parent = FarmContainer
+
+local FarmToggleCorner = Instance.new("UICorner")
+FarmToggleCorner.CornerRadius = UDim.new(0, 6)
+FarmToggleCorner.Parent = FarmToggle
+
+FarmToggle.MouseButton1Click:Connect(function()
+    getgenv().Config.AutoFarmAtivo = not getgenv().Config.AutoFarmAtivo
+    
+    if getgenv().Config.AutoFarmAtivo then
+        FarmStatus.Text = "🟢 AUTO FARM: ON"
+        FarmStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+        FarmToggle.Text = "DESATIVAR FARM"
+        FarmToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+        Notificar("AutoFarm", "Farm ativado!", 2)
+        task.spawn(LoopFarm)
+    else
+        FarmStatus.Text = "🔴 AUTO FARM: OFF"
+        FarmStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+        FarmToggle.Text = "ATIVAR FARM"
+        FarmToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        Notificar("AutoFarm", "Farm desativado!", 2)
     end
 end)
 
 -- ============================================
--- [[ NOTIFICAÇÃO FINAL ]]
+-- [[ ABA BOSS ]]
 -- ============================================
 
-task.wait(2)
-Sirius:Notify({ 
-    Title = "SailorPiece AutoFarm v2", 
-    Content = "Script carregado! Botão de música modificado!", 
-    Duration = 5 
-})
+local BossTitle = Instance.new("TextLabel")
+BossTitle.Size = UDim2.new(1, 0, 0, 30)
+BossTitle.BackgroundTransparency = 1
+BossTitle.Text = "👾 CONFIGURAÇÕES DE BOSS"
+BossTitle.TextColor3 = Color3.fromRGB(255, 100, 100)
+BossTitle.TextSize = 18
+BossTitle.Font = Enum.Font.SourceSansBold
+BossTitle.TextXAlignment = Enum.TextXAlignment.Left
+BossTitle.Parent = BossContainer
 
-print("=== SCRIPT CARREGADO ===")
+-- Status do Boss
+local BossStatus = Instance.new("TextLabel")
+BossStatus.Size = UDim2.new(0, 200, 0, 30)
+BossStatus.Position = UDim2.new(0, 0, 0, 40)
+BossStatus.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+BossStatus.BackgroundTransparency = 0.3
+BossStatus.Text = "🔴 AUTO BOSS: OFF"
+BossStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+BossStatus.TextSize = 16
+BossStatus.Font = Enum.Font.SourceSansBold
+BossStatus.Parent = BossContainer
+
+local BossStatusCorner = Instance.new("UICorner")
+BossStatusCorner.CornerRadius = UDim.new(0, 6)
+BossStatusCorner.Parent = BossStatus
+
+-- Botão Ativar Boss
+local BossToggle = Instance.new("TextButton")
+BossToggle.Size = UDim2.new(0, 150, 0, 40)
+BossToggle.Position = UDim2.new(0, 220, 0, 40)
+BossToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+BossToggle.Text = "ATIVAR BOSS"
+BossToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+BossToggle.TextSize = 16
+BossToggle.Font = Enum.Font.SourceSansBold
+BossToggle.Parent = BossContainer
+
+local BossToggleCorner = Instance.new("UICorner")
+BossToggleCorner.CornerRadius = UDim.new(0, 6)
+BossToggleCorner.Parent = BossToggle
+
+BossToggle.MouseButton1Click:Connect(function()
+    getgenv().Config.AutoBossAtivo = not getgenv().Config.AutoBossAtivo
+    
+    if getgenv().Config.AutoBossAtivo then
+        BossStatus.Text = "🟢 AUTO BOSS: ON"
+        BossStatus.TextColor3 = Color3.fromRGB(100, 255, 100)
+        BossToggle.Text = "DESATIVAR BOSS"
+        BossToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+        Notificar("AutoFarm", "Boss ativado!", 2)
+        task.spawn(LoopBoss)
+    else
+        BossStatus.Text = "🔴 AUTO BOSS: OFF"
+        BossStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+        BossToggle.Text = "ATIVAR BOSS"
+        BossToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        Notificar("AutoFarm", "Boss desativado!", 2)
+    end
+end)
+
+-- ============================================
+-- [[ ABA CONFIG ]]
+-- ============================================
+
+local ConfigTitle = Instance.new("TextLabel")
+ConfigTitle.Size = UDim2.new(1, 0, 0, 30)
+ConfigTitle.BackgroundTransparency = 1
+ConfigTitle.Text = "⚙️ CONFIGURAÇÕES GERAIS"
+ConfigTitle.TextColor3 = Color3.fromRGB(200, 200, 0)
+ConfigTitle.TextSize = 18
+ConfigTitle.Font = Enum.Font.SourceSansBold
+ConfigTitle.TextXAlignment = Enum.TextXAlignment.Left
+ConfigTitle.Parent = ConfigContainer
+
+-- Anti-AFK Toggle
+local AfkLabel = Instance.new("TextLabel")
+AfkLabel.Size = UDim2.new(0, 100, 0, 30)
+AfkLabel.Position = UDim2.new(0, 0, 0, 40)
+AfkLabel.BackgroundTransparency = 1
+AfkLabel.Text = "Anti-AFK:"
+AfkLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+AfkLabel.TextSize = 16
+AfkLabel.Font = Enum.Font.SourceSans
+AfkLabel.TextXAlignment = Enum.TextXAlignment.Left
+AfkLabel.Parent = ConfigContainer
+
+local AfkToggle = Instance.new("TextButton")
+AfkToggle.Size = UDim2.new(0, 80, 0, 30)
+AfkToggle.Position = UDim2.new(0, 120, 0, 40)
+AfkToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+AfkToggle.Text = "ON"
+AfkToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+AfkToggle.TextSize = 16
+AfkToggle.Font = Enum.Font.SourceSansBold
+AfkToggle.Parent = ConfigContainer
+
+local AfkCorner = Instance.new("UICorner")
+AfkCorner.CornerRadius = UDim.new(0, 4)
+AfkCorner.Parent = AfkToggle
+
+AfkToggle.MouseButton1Click:Connect(function()
+    getgenv().Config.AntiAfk = not getgenv().Config.AntiAfk
+    
+    if getgenv().Config.AntiAfk then
+        AfkToggle.Text = "ON"
+        AfkToggle.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        AfkToggle.Text = "OFF"
+        AfkToggle.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+    end
+end)
+
+-- ============================================
+-- [[ CONTROLE DE ABAS ]]
+-- ============================================
+
+local function MostrarAba(aba)
+    FarmContainer.Visible = (aba == "Farm")
+    BossContainer.Visible = (aba == "Boss")
+    QuestContainer.Visible = (aba == "Quest")
+    ConfigContainer.Visible = (aba == "Config")
+    
+    -- Resetar cores das abas
+    AbaFarm.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    AbaBoss.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    AbaQuest.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    AbaConfig.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    
+    -- Destacar aba selecionada
+    if aba == "Farm" then
+        AbaFarm.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    elseif aba == "Boss" then
+        AbaBoss.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    elseif aba == "Quest" then
+        AbaQuest.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+    elseif aba == "Config" then
+        AbaConfig.BackgroundColor3 = Color3.fromRGB(200, 200, 0)
+    end
+end
+
+-- Conectar abas
+AbaFarm.MouseButton1Click:Connect(function() MostrarAba("Farm") end)
+AbaBoss.MouseButton1Click:Connect(function() MostrarAba("Boss") end)
+AbaQuest.MouseButton1Click:Connect(function() MostrarAba("Quest") end)
+AbaConfig.MouseButton1Click:Connect(function() MostrarAba("Config") end)
+
+-- Mostrar aba Farm por padrão
+MostrarAba("Farm")
+
+-- ============================================
+-- [[ WATERMARK ]]
+-- ============================================
+
+local Watermark = Instance.new("TextLabel")
+Watermark.Size = UDim2.new(0, 200, 0, 20)
+Watermark.Position = UDim2.new(0, 10, 1, -25)
+Watermark.BackgroundTransparency = 1
+Watermark.Text = "⚓ AutoFarm v2 • By Dk"
+Watermark.TextColor3 = Color3.fromRGB(150, 150, 150)
+Watermark.TextSize = 12
+Watermark.Font = Enum.Font.SourceSans
+Watermark.TextXAlignment = Enum.TextXAlignment.Left
+Watermark.Parent = MainFrame
+
+-- ============================================
+-- [[ ATALHOS DE TECLA ]]
+-- ============================================
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    
+    -- F4 para mostrar/esconder
+    if input.KeyCode == Enum.KeyCode.F4 then
+        ScreenGui.Enabled = not ScreenGui.Enabled
+    end
+end)
+
+-- ============================================
+-- [[ INICIALIZAÇÃO ]]
+-- ============================================
+
+Notificar("⚓ Sailor Piece AutoFarm", "UI carregada! Pressione F4 para abrir/fechar", 5)
+print("=== AUTOFARM UI CARREGADA ===")
+print("📌 Use F4 para abrir/fechar a interface")
