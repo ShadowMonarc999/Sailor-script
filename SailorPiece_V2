@@ -555,6 +555,77 @@ TabConfig:AddSlider({
     end,
 })
 
+-- ============================================
+-- [[ MODIFICAÇÃO DO BOTÃO DE MÚSICA ]]
+-- ============================================
+
+-- Aguardar o Sirius carregar completamente
+task.wait(3)
+
+-- Função para modificar o botão de música
+local function modificarBotaoMusica()
+    -- Verificar se as variáveis existem
+    if not smartBar or not smartBar.Buttons then
+        return false
+    end
+    
+    local musicButton = smartBar.Buttons:FindFirstChild("Music")
+    if not musicButton then
+        return false
+    end
+    
+    -- Remover função original do botão de música
+    if musicButton.Interact then
+        -- Desconectar eventos antigos
+        musicButton.Interact.MouseButton1Click:Disconnect()
+        
+        -- Criar nova função
+        musicButton.Interact.MouseButton1Click:Connect(function()
+            if debounce then return end
+            
+            -- Feedback visual
+            tweenService:Create(musicButton, TweenInfo.new(0.2), {Size = UDim2.new(0,28,0,28)}):Play()
+            tweenService:Create(musicButton, TweenInfo.new(0.2), {BackgroundTransparency = 0.6}):Play()
+            tweenService:Create(musicButton.Icon, TweenInfo.new(0.2), {ImageTransparency = 0.6}):Play()
+            task.wait(0.15)
+            tweenService:Create(musicButton, TweenInfo.new(0.25), {Size = UDim2.new(0,36,0,36)}):Play()
+            tweenService:Create(musicButton, TweenInfo.new(0.25), {BackgroundTransparency = 0}):Play()
+            tweenService:Create(musicButton.Icon, TweenInfo.new(0.25), {ImageTransparency = 0.02}):Play()
+            
+            -- Fechar painel de música
+            if musicPanel and musicPanel.Visible then
+                closeMusic()
+            end
+            
+            -- AQUI VOCÊ COLOCA O CÓDIGO DO SEU AUTOFARM
+            -- (o código que você quer executar)
+            print("✅ Botão modificado! Coloque seu código aqui.")
+            
+            -- Exemplo: ativar auto farm
+            getgenv().Config = getgenv().Config or {}
+            getgenv().Config.AutoFarmAtivo = not getgenv().Config.AutoFarmAtivo
+            
+            queueNotification("AutoFarm", "Auto Farm " .. (getgenv().Config.AutoFarmAtivo and "ATIVADO" or "DESATIVADO"), 4400695581)
+        end)
+    end
+    
+    return true
+end
+
+-- Tentar modificar o botão
+task.spawn(function()
+    local tentativas = 0
+    while tentativas < 20 do
+        task.wait(1)
+        if modificarBotaoMusica() then
+            print("✅ Botão de música modificado com sucesso!")
+            queueNotification("AutoFarm", "Botão de música agora controla o AutoFarm!", 4400695581)
+            break
+        end
+        tentativas = tentativas + 1
+    end
+end)
+
 -- Notificacao inicial
 Notificar("SailorPiece AutoFarm v2", "Script carregado com sucesso!", 5)
 print("=== SCRIPT CARREGADO ===")
