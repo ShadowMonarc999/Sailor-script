@@ -2,7 +2,7 @@
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
     
     -- Cria janela principal
-    local window = Library.CreateLib("Sailor Piece By Dk Dev", "BloodTheme")
+    local window = library.CreateLib("[🍀2x Luck🍀] Sailor Piece - By.DK Dev", "BloodTheme")
 
     -- ===================================================
 
@@ -10,21 +10,20 @@ local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHept
 
     -- ====================================================
 
-    local Main = Window:NewTab("Main")
-    local AutoFarm = Window:NewTab("AUto Farm")
-    local Quest = Window:NewTab("All Quest")
-    local Boss = Window:NewTab("Boss")
-    local Dungoen = Window:NewTab("Dungeon")
-    local Stats = Window:NewTab("Stats")
-    local Teleport = Window:NewTab("Teleport")
+    local Main = window:NewTab("Main")
+    local AutoFarm = window:NewTab("Auto Farm")
+    local Quest = window:NewTab("All Quest")
+    local Boss = window:NewTab("Boss")
+    local Dungeon = window:NewTab("Dungeon")
+    local Stats = window:NewTab("Stats")
+    local Teleport = window:NewTab("Teleport")
     local Settings = window:NewTab("Settings")
 
     -- SEÇÕES MAIN FEATURES
-local MainFeatures = Main:NewSection("MainFeatures")
-    local AutoHaki = Main:NewSection("AutoHaki")
+local MainFeatures = Main:NewSection("Main Features")
 
     -- Speedhack
-MainFeatures:NewToggle("Speedhack", function(state)
+MainFeatures:NewToggle("Speedhack","Velocidade", function(state)
     if state then
     game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 120
         print("Speedhack ATIVADO")
@@ -34,7 +33,7 @@ MainFeatures:NewToggle("Speedhack", function(state)
     end
 end)
 
-MainFeatures:NewToggle("Infinity jump", function(state)
+MainFeatures:NewToggle("Infinity jump","Pulos", function(state)
     if state then
         --coloque o script que ativa aqui
         print("Infinity jump ATIVADO")
@@ -45,7 +44,7 @@ MainFeatures:NewToggle("Infinity jump", function(state)
     
 end)
 
-MainFeatures:NewToggle("ESP Player", function(state)
+MainFeatures:NewToggle("ESP Player","Ver Player", function(state)
     if state then
         --coloque o script que ativa aqui
         print("ESP Player ATIVADO")
@@ -58,9 +57,10 @@ MainFeatures:NewToggle("ESP Player", function(state)
 end)
 
 -- === ADCIONAR TOGGLE ===
+local AutoHaki = Main:NewSection("Auto Haki")
 
     -- Ativando os Haki
-AutoHaki:NewToggle("Auto Haki", "Ativar Auto Haki", function(state)
+AutoHaki:NewToggle("Auto Haki","Auto Haki", function(state)
     if state then
         --coloque o script que ativa aqui
         print("Auto haki ATIVADO")
@@ -70,7 +70,7 @@ AutoHaki:NewToggle("Auto Haki", "Ativar Auto Haki", function(state)
     end
 end)
 
-AutoHaki:NewToggle("Auto Observation", "Ativar Observation Haki", function(state)
+AutoHaki:NewToggle("Auto Observation","Haki OBS", function(state)
     if state then
         --coloque o script que ativa aqui
         print("Observation ATIVADO")
@@ -80,7 +80,7 @@ AutoHaki:NewToggle("Auto Observation", "Ativar Observation Haki", function(state
     end
 end)
 
-AutoHaki:NewToggle("Auto Haki Conqueror", "Ativar Haki Conqueror", function(state)
+AutoHaki:NewToggle("Auto Haki Conqueror","Haki Conquis", function(state)
     if state then
         --coloque o script que ativa aqui
         print("Haki Conqueror ATIVADO")
@@ -95,37 +95,36 @@ end)
 -- [[ ABA AUTO FARM ]]
 
 -- =======================================================
-local AutoFarm = Window:NewTab("Auto Farm")
 
     --SEÇÃO WEAPON
 local FarmSection = AutoFarm:NewSection("Weapon Settings")
 
-FarmSection:NewDropdown("Select Weapon", {"Combat", "Sword"}, function(option)
+FarmSection:NewDropdown("Select Weapon","Selceione a arma", {"Combat", "Sword"}, function(option)
 print("Weapon: " .. option)
 end)
 
-FarmSection:NewToggle("Auto Equip Weapon", function (state)
+FarmSection:NewToggle("Auto Equip Weapon","Auto Equip", function (state)
    if state then
     --coloque o script que ativa aqui
-        print("Weapon Selected")
+        print("Auto Equip Weapon Selected")
     else
         --coloque o script que desativa aqui
-        print("Weapon Deselected")
+        print("Auto Equip Weapon Deselected")
     end
 end)
 
     --SEÇÃO MOB FARM/Quest 
     -- Pega a quest do NPCs correspondentes a seleção e farma
-local FarmSection = AutoFarm:NewSection("Mob Farm")
+local MobFarm = AutoFarm:NewSection("Mob Farm")
 
-FarmSection:NewDropdown("Select NPCs", "Farm NPCs", {"None","Thief (Lv.10)", "ThiefBoss (Lv.25)", "Monkey (Lv.250)", "Monkei Boss (Lv.500)", "Desert Bandit (Lv.750)",
+MobFarm:NewDropdown("Select NPCs","Selecione o NPC", {"None","Thief (Lv.10)", "ThiefBoss (Lv.25)", "Monkey (Lv.250)", "Monkei Boss (Lv.500)", "Desert Bandit (Lv.750)",
  "Desert Boss (Lv.1000)", "Frost Rogue (Lv.1500)", "Snow Boss (Lv.2000)", "Sorcerer Student (Lv.3000)", "Panda Boss (Lv.4000)", "Hollow (Lv.5000)", "Strong Sorcerer (Lv.6000)",
 "Curse (Lv.7000)", "Slime (Lv.8000)", "Academy Teacher (Lv.9000)"}, function(option)
-    print("NPCs: ".. option)
+    print("NPCs: " .. option)
 end)
 
 
-FarmSection:NewToggle("Auto Farm", "Ativar Auto Farm", function(state)
+MobFarm:NewToggle("Auto Farm","Auto Farm", function(state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Farm ATIVADO")
@@ -135,15 +134,17 @@ FarmSection:NewToggle("Auto Farm", "Ativar Auto Farm", function(state)
     end
 end)
 
-FarmSection:NewSlider("Farm Distance", 20, 5, function(s)
+MobFarm:NewSlider("Farm Distance","DistanceFarm", 20, 5, function(s)
     print("Distance: " .. s)
 end)
 
     -- SEÇÃO FARM ALL MOBS
     -- Farma todos os NPCs sem pegar a quest
-FarmSection:NewSection("All Mob Farm")
+    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
+local AllMob = AutoFarm:NewSection("All Mob Farm")
 
-FarmSection:NewToggle("Auto Farm All Mobs", function (state)
+
+AllMob:NewToggle("Auto Farm All Mobs","Farm All Mobs", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Farm All Mobs ATIVADO")
@@ -154,12 +155,14 @@ FarmSection:NewToggle("Auto Farm All Mobs", function (state)
 end)
 
     --SEÇÃO FARM BOSS
-FarmSection:NewSection("Boss Farm")
-FarmSection:NewDropdown("Select Boss", {"YujiBoss","GojoBoss","SukunaBoss","AizenBoss",
+    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
+local FarmBoos = AutoFarm:NewSection("Farm Boss")
+
+FarmBoos:NewDropdown("Select Boss","Selecione o Boss", {"YujiBoss","GojoBoss","SukunaBoss","AizenBoss",
 "MadokaBoss","JinwooBoss","AlucardBoss"}, function (option)
-    print("Boss: ".. option)
+    print("Boss: " .. option)
 end)
-FarmSection:NewToggle("Auto Farm Boss", function (state)
+FarmBoos:NewToggle("Auto Farm Boss","Farm Boss", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Farm Boss ATIVADO")
@@ -170,13 +173,15 @@ FarmSection:NewToggle("Auto Farm Boss", function (state)
 end)
 
     --SEÇÃO DE BOSS SUMMON
-FarmSection:NewSection("Farm Boss Summon")
-FarmSection:NewDropdown("Select Boss Summon", {"Ichigo","Saber","QinShi",},
+    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
+local FarmBossSummon = AutoFarm:NewSection("Farm Boss Summon")
+
+FarmBossSummon:NewDropdown("Select Boss Summon","Selecione o Boss Para Sumonar", {"Ichigo","Saber","QinShi"},
 function (option)
-    print("Boss: ".. option)
+    print("Boss: " .. option)
 end)
 
-FarmSection:NewToggle("Auto Summon Boss", function (state)
+FarmBossSummon:NewToggle("Auto Summon Boss","Summon Boss", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Boss Summoned")
@@ -186,7 +191,7 @@ FarmSection:NewToggle("Auto Summon Boss", function (state)
     end
 end)
 
-FarmSection:NewToggle("Auto Kill Summon", function (state)
+FarmBossSummon:NewToggle("Auto Kill Summon","Auto Kill", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Kill Boss Summoned ATIVADO")
@@ -197,11 +202,13 @@ FarmSection:NewToggle("Auto Kill Summon", function (state)
 end)
 
     --SEÇÃO SKILL
-FarmSection:NewSection("Skill Manage")
-FarmSection:NewDropdown("Select Skills", {"Z","X","C","V","F"}, function (option)
-    print("Skills Selected: "..option)
+    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
+local Skills = AutoFarm:NewSection("Skill Manage")
+
+Skills:NewDropdown("Select Skills","Selecione as skills", {"Z","X","C","V","F"}, function (option)
+    print("Skills Selected: " ..option)
 end)
-FarmSection:NewToggle("Auto Use Skills", function (state)
+Skills:NewToggle("Auto Use Skills","Use Skills", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Use Skills ATIVADO")
@@ -216,10 +223,10 @@ end)
 -- [[ ABA QUEST ]]
 
 -- =======================================================
-local Quest = Window:NewTab("All Quest")
+
 local QuestSection = Quest:NewSection("Quest Settings")
 
-QuestSection:NewToggle("Auto Accept Quest", function (state)
+QuestSection:NewToggle("Auto Accept Quest","Accept Quest", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Accept Quest ATIVADO")
@@ -229,7 +236,7 @@ QuestSection:NewToggle("Auto Accept Quest", function (state)
     end
 end)
 
-QuestSection:NewToggle("Auto Complete Quest", function (state)
+QuestSection:NewToggle("Auto Complete Quest","Complete Quest", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Complete Quest ATIVADO")
@@ -239,9 +246,9 @@ QuestSection:NewToggle("Auto Complete Quest", function (state)
     end
 end)
 
-QuestSection:NewDropdown("Selec Quest", {"Quest (Lv.1-10)","Quest (Lv.25)",
+QuestSection:NewDropdown("Selec Quest","Selecione a Quest", {"Quest (Lv.1-10)","Quest (Lv.25)",
 "Quest (Lv.500)","Tem que Adicionar mais ou remover"}, function (option)
-    print("Quest Selected: ".. option)
+    print("Quest Selected: " .. option)
 end)
 
 -- =======================================================
@@ -251,14 +258,14 @@ end)
 -- =======================================================
 
     --Boss Anos
-local Boss = Window:NewTab("Boss")
-local BossSection = Boss:NewSection("Auto Summon Anos Boss")
 
-BossSection:NewDropdown("Select Difficulty", {"Normal","Medium","Hard",
+local BossAnos = Boss:NewSection("Auto Summon Anos Boss")
+
+BossAnos:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard",
 "Extreme"}, function (option)
-    print("Difficulty: ".. option)
+    print("Difficulty: " .. option)
 end)
-BossSection:NewToggle("Auto Summon Anos", function (state)
+BossAnos:NewToggle("Auto Summon Anos","Anos", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Anos Summon ATIVADO")
@@ -267,7 +274,7 @@ BossSection:NewToggle("Auto Summon Anos", function (state)
         print("Anos Summon DESATIVADO")
     end
 end)
-BossSection:NewToggle("Auto Kill Anos", function (state)
+BossAnos:NewToggle("Auto Kill Anos","Kill Anos", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Kill Anos ATIVADO")
@@ -278,16 +285,19 @@ BossSection:NewToggle("Auto Kill Anos", function (state)
 end)
 
     --Summon Boss V2
-BossSection:NewSection("Auto Summon Boss V2")
-BossSection:NewDrapdown("Select Boss", {"GojoV2","SukunaV2"}, function (option)
+    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
+    -- EXEMPLO local SummonBossV2
+local SummonBossV2 = Boss:NewSection("Summon Boss V2")
+
+SummonBossV2:NewDropdown("Select Boss","Selecione o Boss V2", {"GojoV2","SukunaV2"}, function (option)
     print("Boss Select: ".. option)
 end)
 
-BossSection:NewDropdown("Select Difficulty", {"Normal","Medium","Hard",
+SummonBossV2:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard",
 "Extreme"}, function (option)
-    print("Difficulty: ".. option)
+    print("Difficulty: " .. option)
 end)
-BossSection:NewToggle("Auto Summon V2", function (state)
+SummonBossV2:NewToggle("Auto Summon V2","Summon V2", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Summon Boss V2 ATIVADO")
@@ -298,12 +308,14 @@ BossSection:NewToggle("Auto Summon V2", function (state)
 end)
 
     --Summon Rimuru
-BossSection:NewSection("Auto Summon Rimuru")
-BossSection:NewDropdown("Select Difficulty", {"Normal","Medium","Hard",
+    --Criar Novo local. Exemplo local Summon Rimuru
+local SummonRimuru = Boss:NewSection("Summon Rimuru")
+
+SummonRimuru:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard",
 "Extreme"}, function (option)
-    print("Difficulty: ".. option)
+    print("Difficulty: " .. option)
 end)
-BossSection:NewToggle("Auto Summon Rimuru", function (state)
+SummonRimuru:NewToggle("Auto Summon Rimuru","Summon Rimuru", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Summon Rimuru ATIVADO")
@@ -312,7 +324,7 @@ BossSection:NewToggle("Auto Summon Rimuru", function (state)
         print("Auto Summon Rimuru DESATIVADO")
     end
 end)
-BossSection:Newtoggle("Auto Kill Rimuru", function (state)
+SummonRimuru:NewToggle("Auto Kill Rimuru","Kill Rimuru", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Kill Rimuru ATIVADO")
@@ -323,12 +335,14 @@ BossSection:Newtoggle("Auto Kill Rimuru", function (state)
 end)
 
     --Summon Gilgamesh
-BossSection:NewSection("Auto Summon Gilgamesh")
-BossSection:NewDropdown("Select Difficulty",{"Normal","Medium","Hard",
+    --Criar Novo local. EXEMPLO local SummonGilgamesh
+local SummonGilgamesh = Boss:NewSection("Summon Gilgamesh")
+
+SummonGilgamesh:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard",
 "Extreme"}, function (option)
-    print("Difficulty: ".. option)
+    print("Difficulty: " .. option)
 end)
-BossSection:NewToggle("Auto Summon Gilgamesh", function (state)
+SummonGilgamesh:NewToggle("Auto Summon Gilgamesh","Summon Gilgamesh", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Summon Gilgamesh ATIVADO")
@@ -337,7 +351,7 @@ BossSection:NewToggle("Auto Summon Gilgamesh", function (state)
         print("Auto Summon Gilamesh")
     end
 end)
-BossSection:NewToggle("Auto Kill Gilgamesh", function (state)
+SummonGilgamesh:NewToggle("Auto Kill Gilgamesh","Kill Gilgamesh", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Kill Gilgamesh ATIVADO")
@@ -352,14 +366,14 @@ end)
 -- [[ ABA DUNGEON ]]
 
 -- =======================================================
-local Dungeon = Windown:NewTab("Dungeon")
-local DungeonSection = Dungeon:NewSection("Dungeon")
 
-DungeonSection:NewDropdown("Select Dungeon", {"CidDungeon","RuneDungeon",
+local DungeonPortal = Dungeon:NewSection("Dungeon Portal")
+
+DungeonPortal:NewDropdown("Select Dungeon","Selecione a Dungeon", {"CidDungeon","RuneDungeon",
 "DoubleDungeon"}, function (option)
-    print("Dungeon: ".. option)
+    print("Dungeon: " .. option)
 end)
-BossSection:NewToggle("Auto Join Dungeon", function (state)
+DungeonPortal:NewToggle("Auto Join Dungeon","Join Dungeon",function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Join Dungeon ATIVADO")
@@ -369,8 +383,10 @@ BossSection:NewToggle("Auto Join Dungeon", function (state)
     end
 end)
     --Dungeons Options
-BossSection:NewSection("Dungeon Options")
-BossSection:NewToggle("Auto Retry", function (state)
+    --Criar outro locar. Exemplo local DungeonOptions
+local DungeonOptions = Dungeon:NewSection("Dungeon Options")
+
+DungeonOptions:NewToggle("Auto Retry","Retry", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Retry ATIVADO")
@@ -380,11 +396,14 @@ BossSection:NewToggle("Auto Retry", function (state)
     end
 end)
     --Dungeon Wave Vote
-DungeonSection:NewDropdown("Select Difficulty", {"Normal","Medium",
+    --Criar outro local. EXEMPLO local DungeonWaveVote
+local DungeonWaveVote = Dungeon:NewSection("Dungeon Wave Vote")
+
+DungeonWaveVote:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium",
 "Hard","Extreme"}, function (option)
-    print("Difficulty: ".. option)
+    print("Difficulty: " .. option)
 end)
-DungeonSection:NewToggle("Auto Vote Difficulty", function (state)
+DungeonWaveVote:NewToggle("Auto Vote Difficulty","Vote Difficulty", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Vote Difficulty ATIVADO")
@@ -393,7 +412,7 @@ DungeonSection:NewToggle("Auto Vote Difficulty", function (state)
         print("Auto Vote Difficulty DESATIVADO")
     end
 end)
-DungeonSection:NewToggle("Start Kill", function (state)
+DungeonWaveVote:NewToggle("Start Kill","Kill", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Start Kill Dungeon ATIVADO")
@@ -409,10 +428,10 @@ end)
 
 -- =======================================================
 
-local Stats = Window:NewTab("Stats")
+    --Cirar outro local. EXEMPLO local StatsSection
 local StatsSection = Stats:NewSection("Stats Settings")
 
-StatsSection:NewToggle("Auto Stats Allocation", function (state)
+StatsSection:NewToggle("Auto Stats Allocation","Auto Stats", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Auto Stats ATIVADO")
@@ -421,30 +440,30 @@ StatsSection:NewToggle("Auto Stats Allocation", function (state)
         print("Auto Stats DESATIVADO")
     end
 end)
-StatsSection:NewSlider("Strength", 100, 0, function (s)
+StatsSection:NewSlider("Strength","Força", 100, 0, function (s)
     print("Strength: ".. s)
 end)
-StatsSection:NewSlider("Defense", 100, 0, function (s)
-    print("Defense: ".. s)
+StatsSection:NewSlider("Defense","Defesa", 100, 0, function (s)
+    print("Defense: " .. s)
 end)
-StatsSection:NewSlider("Speed", 100, 0, function (s)
-    print("Speed: ".. s)
+StatsSection:NewSlider("Speed","Velocidade", 100, 0, function (s)
+    print("Speed: " .. s)
 end)
 -- =======================================================
 
 -- [[ ABA TELEPORT ]]
 
 -- =======================================================
-local Teleport = Window:NewTab("Teleport")
+    --Cirar outro local. EXEMPLO local TeleportSection
 local TeleportSection = Teleport:NewSection("Teleport Options")
 
-TeleportSection:NewDropdown("Select Island", {"Starter Island","Jungle Island",
+TeleportSection:NewDropdown("Select Island","Selecione a Ilha", {"Starter Island","Jungle Island",
 "Desert Island","Snow Island","Sailor Island","Shibuya Station",
 "Hueco Mundo","Boss Island","Dungeon Island","Shinjuku Island",
 "Valentine Island","Slime Island","Academy Island"}, function (option)
-    print("Island: ".. option)
+    print("Island: " .. option)
 end)
-TeleportSection:NewButton("Teleport", function ()
+TeleportSection:NewButton("Teleport", "Teleport para a ilha", function ()
     print("Teleportado")
 end)
 
@@ -453,10 +472,10 @@ end)
 -- [[ ABA SETTINGS ]]
 
 -- =======================================================
-local Settings = Window:NewTab("Settings")
+    --Cirar outro local. EXEMPLO local SettingsSection
 local SettingsSection = Settings:NewSection("General Settings")
 
-SettingsSection:NewToggle("Anti AFK", function (state)
+SettingsSection:NewToggle("Anti AFK","Anti AFK", function (state)
     if state then
         --coloque o script que ativa aqui
         print("Anti AFK ATIVADO")
@@ -466,12 +485,12 @@ SettingsSection:NewToggle("Anti AFK", function (state)
     end
 end)
 
-SettingsSection:NewKeybind("Toggle UI", Enum.KeyCode.LeftControl, function ()
-    Library:ToggleUI()
+SettingsSection:NewKeybind("Toggle UI", "Tecla para Abrir/Fechar UI", Enum.KeyCode.K, function ()
+    library:ToggleUI()
 end)
 -- ============================================
 -- [[ INICIALIZAÇÃO ]]
 -- ============================================
 print("=== Sailor Piece Script ===")
-print("📌 Use Control Esquerdo para abrir/fechar a UI")
+print("📌 Use F4 para abrir/fechar a UI")
 print("Feito Por DK Dev")
