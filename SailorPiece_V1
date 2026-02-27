@@ -1,0 +1,477 @@
+-- Carrega o Kavo Library
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+    
+    -- Cria janela principal
+    local window = Library.CreateLib("Sailor Piece By Dk Dev", "BloodTheme")
+
+    -- ===================================================
+
+    -- [[ ABA MAIN ]]
+
+    -- ====================================================
+
+    local Main = Window:NewTab("Main")
+    local AutoFarm = Window:NewTab("AUto Farm")
+    local Quest = Window:NewTab("All Quest")
+    local Boss = Window:NewTab("Boss")
+    local Dungoen = Window:NewTab("Dungeon")
+    local Stats = Window:NewTab("Stats")
+    local Teleport = Window:NewTab("Teleport")
+    local Settings = window:NewTab("Settings")
+
+    -- SEÇÕES MAIN FEATURES
+local MainFeatures = Main:NewSection("MainFeatures")
+    local AutoHaki = Main:NewSection("AutoHaki")
+
+    -- Speedhack
+MainFeatures:NewToggle("Speedhack", function(state)
+    if state then
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 120
+        print("Speedhack ATIVADO")
+    else
+    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 17
+        print("SpeedHack DESATIVADO")
+    end
+end)
+
+MainFeatures:NewToggle("Infinity jump", function(state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Infinity jump ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Infinity jump DESATIVADO")
+    end
+    
+end)
+
+MainFeatures:NewToggle("ESP Player", function(state)
+    if state then
+        --coloque o script que ativa aqui
+        print("ESP Player ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("ESP Player DESATIVADO")
+    end
+
+
+end)
+
+-- === ADCIONAR TOGGLE ===
+
+    -- Ativando os Haki
+AutoHaki:NewToggle("Auto Haki", "Ativar Auto Haki", function(state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto haki ATIVADO")
+    else
+        --coloque o script que desativa aqui
+    print("AUto Haki DESATIVADO")
+    end
+end)
+
+AutoHaki:NewToggle("Auto Observation", "Ativar Observation Haki", function(state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Observation ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Observation DESATIVADO")
+    end
+end)
+
+AutoHaki:NewToggle("Auto Haki Conqueror", "Ativar Haki Conqueror", function(state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Haki Conqueror ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Haki Conqueror DESATIVADO")
+    end
+end)
+
+-- =======================================================
+
+-- [[ ABA AUTO FARM ]]
+
+-- =======================================================
+local AutoFarm = Window:NewTab("Auto Farm")
+
+    --SEÇÃO WEAPON
+local FarmSection = AutoFarm:NewSection("Weapon Settings")
+
+FarmSection:NewDropdown("Select Weapon", {"Combat", "Sword"}, function(option)
+print("Weapon: " .. option)
+end)
+
+FarmSection:NewToggle("Auto Equip Weapon", function (state)
+   if state then
+    --coloque o script que ativa aqui
+        print("Weapon Selected")
+    else
+        --coloque o script que desativa aqui
+        print("Weapon Deselected")
+    end
+end)
+
+    --SEÇÃO MOB FARM/Quest 
+    -- Pega a quest do NPCs correspondentes a seleção e farma
+local FarmSection = AutoFarm:NewSection("Mob Farm")
+
+FarmSection:NewDropdown("Select NPCs", "Farm NPCs", {"None","Thief (Lv.10)", "ThiefBoss (Lv.25)", "Monkey (Lv.250)", "Monkei Boss (Lv.500)", "Desert Bandit (Lv.750)",
+ "Desert Boss (Lv.1000)", "Frost Rogue (Lv.1500)", "Snow Boss (Lv.2000)", "Sorcerer Student (Lv.3000)", "Panda Boss (Lv.4000)", "Hollow (Lv.5000)", "Strong Sorcerer (Lv.6000)",
+"Curse (Lv.7000)", "Slime (Lv.8000)", "Academy Teacher (Lv.9000)"}, function(option)
+    print("NPCs: ".. option)
+end)
+
+
+FarmSection:NewToggle("Auto Farm", "Ativar Auto Farm", function(state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Farm ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Farm DESATIVADO")
+    end
+end)
+
+FarmSection:NewSlider("Farm Distance", 20, 5, function(s)
+    print("Distance: " .. s)
+end)
+
+    -- SEÇÃO FARM ALL MOBS
+    -- Farma todos os NPCs sem pegar a quest
+FarmSection:NewSection("All Mob Farm")
+
+FarmSection:NewToggle("Auto Farm All Mobs", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Farm All Mobs ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Farm All Mobs DESATIVADO")
+    end
+end)
+
+    --SEÇÃO FARM BOSS
+FarmSection:NewSection("Boss Farm")
+FarmSection:NewDropdown("Select Boss", {"YujiBoss","GojoBoss","SukunaBoss","AizenBoss",
+"MadokaBoss","JinwooBoss","AlucardBoss"}, function (option)
+    print("Boss: ".. option)
+end)
+FarmSection:NewToggle("Auto Farm Boss", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Farm Boss ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Farm Boss DESATIVADO")
+    end
+end)
+
+    --SEÇÃO DE BOSS SUMMON
+FarmSection:NewSection("Farm Boss Summon")
+FarmSection:NewDropdown("Select Boss Summon", {"Ichigo","Saber","QinShi",},
+function (option)
+    print("Boss: ".. option)
+end)
+
+FarmSection:NewToggle("Auto Summon Boss", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Boss Summoned")
+    else
+        --coloque o script que desativa aqui
+        print("Boss Unsummoned")
+    end
+end)
+
+FarmSection:NewToggle("Auto Kill Summon", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Kill Boss Summoned ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Kill Boss Summoned DESATIVADO")
+    end
+end)
+
+    --SEÇÃO SKILL
+FarmSection:NewSection("Skill Manage")
+FarmSection:NewDropdown("Select Skills", {"Z","X","C","V","F"}, function (option)
+    print("Skills Selected: "..option)
+end)
+FarmSection:NewToggle("Auto Use Skills", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Use Skills ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Use Skills DESATIVADO")
+    end
+end)
+
+-- =======================================================
+
+-- [[ ABA QUEST ]]
+
+-- =======================================================
+local Quest = Window:NewTab("All Quest")
+local QuestSection = Quest:NewSection("Quest Settings")
+
+QuestSection:NewToggle("Auto Accept Quest", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Accept Quest ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Accept Quest DESATIVADO")
+    end
+end)
+
+QuestSection:NewToggle("Auto Complete Quest", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Complete Quest ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Complete Quest DESATIVADO")
+    end
+end)
+
+QuestSection:NewDropdown("Selec Quest", {"Quest (Lv.1-10)","Quest (Lv.25)",
+"Quest (Lv.500)","Tem que Adicionar mais ou remover"}, function (option)
+    print("Quest Selected: ".. option)
+end)
+
+-- =======================================================
+
+-- [[ ABA BOSS ]]
+
+-- =======================================================
+
+    --Boss Anos
+local Boss = Window:NewTab("Boss")
+local BossSection = Boss:NewSection("Auto Summon Anos Boss")
+
+BossSection:NewDropdown("Select Difficulty", {"Normal","Medium","Hard",
+"Extreme"}, function (option)
+    print("Difficulty: ".. option)
+end)
+BossSection:NewToggle("Auto Summon Anos", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Anos Summon ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Anos Summon DESATIVADO")
+    end
+end)
+BossSection:NewToggle("Auto Kill Anos", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Kill Anos ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Kill Anos DESATIVADO")
+    end
+end)
+
+    --Summon Boss V2
+BossSection:NewSection("Auto Summon Boss V2")
+BossSection:NewDrapdown("Select Boss", {"GojoV2","SukunaV2"}, function (option)
+    print("Boss Select: ".. option)
+end)
+
+BossSection:NewDropdown("Select Difficulty", {"Normal","Medium","Hard",
+"Extreme"}, function (option)
+    print("Difficulty: ".. option)
+end)
+BossSection:NewToggle("Auto Summon V2", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Summon Boss V2 ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Summon Boss V2 DESATIVADO")
+    end
+end)
+
+    --Summon Rimuru
+BossSection:NewSection("Auto Summon Rimuru")
+BossSection:NewDropdown("Select Difficulty", {"Normal","Medium","Hard",
+"Extreme"}, function (option)
+    print("Difficulty: ".. option)
+end)
+BossSection:NewToggle("Auto Summon Rimuru", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Summon Rimuru ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Summon Rimuru DESATIVADO")
+    end
+end)
+BossSection:Newtoggle("Auto Kill Rimuru", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Kill Rimuru ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Kill Rimuru DESATIVADO")
+    end
+end)
+
+    --Summon Gilgamesh
+BossSection:NewSection("Auto Summon Gilgamesh")
+BossSection:NewDropdown("Select Difficulty",{"Normal","Medium","Hard",
+"Extreme"}, function (option)
+    print("Difficulty: ".. option)
+end)
+BossSection:NewToggle("Auto Summon Gilgamesh", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Summon Gilgamesh ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Summon Gilamesh")
+    end
+end)
+BossSection:NewToggle("Auto Kill Gilgamesh", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Kill Gilgamesh ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Kill Gilgamesh DESATIVADO")
+    end
+end)
+
+-- =======================================================
+
+-- [[ ABA DUNGEON ]]
+
+-- =======================================================
+local Dungeon = Windown:NewTab("Dungeon")
+local DungeonSection = Dungeon:NewSection("Dungeon")
+
+DungeonSection:NewDropdown("Select Dungeon", {"CidDungeon","RuneDungeon",
+"DoubleDungeon"}, function (option)
+    print("Dungeon: ".. option)
+end)
+BossSection:NewToggle("Auto Join Dungeon", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Join Dungeon ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Dungeon DESATIVADO")
+    end
+end)
+    --Dungeons Options
+BossSection:NewSection("Dungeon Options")
+BossSection:NewToggle("Auto Retry", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Retry ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Retry DESATIVADO")
+    end
+end)
+    --Dungeon Wave Vote
+DungeonSection:NewDropdown("Select Difficulty", {"Normal","Medium",
+"Hard","Extreme"}, function (option)
+    print("Difficulty: ".. option)
+end)
+DungeonSection:NewToggle("Auto Vote Difficulty", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Vote Difficulty ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Vote Difficulty DESATIVADO")
+    end
+end)
+DungeonSection:NewToggle("Start Kill", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Start Kill Dungeon ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Start Kill Dungeon DESATIVADO")
+    end
+end)
+
+-- =======================================================
+
+-- [[ ABA STATS ]]
+
+-- =======================================================
+
+local Stats = Window:NewTab("Stats")
+local StatsSection = Stats:NewSection("Stats Settings")
+
+StatsSection:NewToggle("Auto Stats Allocation", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Auto Stats ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Auto Stats DESATIVADO")
+    end
+end)
+StatsSection:NewSlider("Strength", 100, 0, function (s)
+    print("Strength: ".. s)
+end)
+StatsSection:NewSlider("Defense", 100, 0, function (s)
+    print("Defense: ".. s)
+end)
+StatsSection:NewSlider("Speed", 100, 0, function (s)
+    print("Speed: ".. s)
+end)
+-- =======================================================
+
+-- [[ ABA TELEPORT ]]
+
+-- =======================================================
+local Teleport = Window:NewTab("Teleport")
+local TeleportSection = Teleport:NewSection("Teleport Options")
+
+TeleportSection:NewDropdown("Select Island", {"Starter Island","Jungle Island",
+"Desert Island","Snow Island","Sailor Island","Shibuya Station",
+"Hueco Mundo","Boss Island","Dungeon Island","Shinjuku Island",
+"Valentine Island","Slime Island","Academy Island"}, function (option)
+    print("Island: ".. option)
+end)
+TeleportSection:NewButton("Teleport", function ()
+    print("Teleportado")
+end)
+
+-- =======================================================
+
+-- [[ ABA SETTINGS ]]
+
+-- =======================================================
+local Settings = Window:NewTab("Settings")
+local SettingsSection = Settings:NewSection("General Settings")
+
+SettingsSection:NewToggle("Anti AFK", function (state)
+    if state then
+        --coloque o script que ativa aqui
+        print("Anti AFK ATIVADO")
+    else
+        --coloque o script que desativa aqui
+        print("Anti AFK DESATIVADO")
+    end
+end)
+
+SettingsSection:NewKeybind("Toggle UI", Enum.KeyCode.LeftControl, function ()
+    Library:ToggleUI()
+end)
+-- ============================================
+-- [[ INICIALIZAÇÃO ]]
+-- ============================================
+print("=== Sailor Piece Script ===")
+print("📌 Use Control Esquerdo para abrir/fechar a UI")
+print("Feito Por DK Dev")
