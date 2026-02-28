@@ -1,496 +1,1271 @@
 -- Carrega o Kavo Library
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
     
-    -- Cria janela principal
-    local window = library.CreateLib("[🍀2x Luck🍀] Sailor Piece - By.DK Dev", "BloodTheme")
+-- Cria janela principal
+local window = library.CreateLib("[🍀2x Luck🍀] Sailor Piece - By.DK Dev", "BloodTheme")
 
-    -- ===================================================
+-- ===================================================
+-- [[ VARIÁVEIS GLOBAIS PARA CONTROLE ]]
+-- ===================================================
+getgenv().InfinityJump = false
+getgenv().ESPEnabled = false
+getgenv().AutoHaki = false
+getgenv().AutoObservation = false
+getgenv().HakiArmamentoAtivo = false
+getgenv().HakiObservationAtivo = false
+getgenv().AutoConqueror = false
+getgenv().AutoFarmAtivo = false
+getgenv().AutoFarmAllMobs = false
+getgenv().AutoFarmBoss = false
+getgenv().AutoSummonBoss = false
+getgenv().AutoKillSummon = false
+getgenv().AutoUseSkills = false
+getgenv().AutoAcceptQuest = false
+getgenv().AutoCompleteQuest = false
+getgenv().AutoSummonAnos = false
+getgenv().AutoKillAnos = false
+getgenv().AutoSummonV2 = false
+getgenv().AutoSummonRimuru = false
+getgenv().AutoKillRimuru = false
+getgenv().AutoSummonGilgamesh = false
+getgenv().AutoKillGilgamesh = false
+getgenv().AutoJoinDungeon = false
+getgenv().AutoRetry = false
+getgenv().AutoVoteDifficulty = false
+getgenv().StartKill = false
+getgenv().AutoStats = false
+getgenv().AntiAFK = false
 
-    -- [[ ABA MAIN ]]
+-- ===================================================
+-- [[ SERVIÇOS ]]
+-- ===================================================
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
 
-    -- ====================================================
+-- ===================================================
+-- [[ FUNÇÕES AUXILIARES ]]
+-- ===================================================
 
-    local Main = window:NewTab("Main")
-    local AutoFarm = window:NewTab("Auto Farm")
-    local Quest = window:NewTab("All Quest")
-    local Boss = window:NewTab("Boss")
-    local Dungeon = window:NewTab("Dungeon")
-    local Stats = window:NewTab("Stats")
-    local Teleport = window:NewTab("Teleport")
-    local Settings = window:NewTab("Settings")
+-- Função para notificações
+local function Notificar(titulo, texto, tempo)
+    tempo = tempo or 3
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = titulo,
+        Text = texto,
+        Duration = tempo
+    })
+end
 
-    -- SEÇÕES MAIN FEATURES
+-- Função para teleportar
+local function TeleportarPara(posicao)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if root then
+        root.CFrame = CFrame.new(posicao)
+    end
+end
+
+-- ===================================================
+-- [[ ABA MAIN ]]
+-- ===================================================
+
+local Main = window:NewTab("Main")
+local AutoFarm = window:NewTab("Auto Farm")
+local Quest = window:NewTab("All Quest")
+local Boss = window:NewTab("Boss")
+local Dungeon = window:NewTab("Dungeon")
+local Stats = window:NewTab("Stats")
+local Teleport = window:NewTab("Teleport")
+local Settings = window:NewTab("Settings")
+
+-- SEÇÕES MAIN FEATURES
 local MainFeatures = Main:NewSection("Main Features")
 
-    -- Speedhack
+-- Speedhack
 MainFeatures:NewToggle("Speedhack","Velocidade", function(state)
     if state then
-    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 120
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 120
         print("Speedhack ATIVADO")
+        Notificar("Speedhack", "Ativado - Velocidade: 120", 2)
     else
-    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 17
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 17
         print("SpeedHack DESATIVADO")
+        Notificar("Speedhack", "Desativado", 2)
     end
 end)
 
+-- Infinity Jump
 MainFeatures:NewToggle("Infinity jump","Pulos", function(state)
+    getgenv().InfinityJump = state
     if state then
-        --coloque o script que ativa aqui
         print("Infinity jump ATIVADO")
+        Notificar("Infinity Jump", "Ativado - Pressione espaço para pular infinitamente", 2)
+        
+        -- Conexão para pulo infinito
+        local connection
+        connection = UserInputService.JumpRequest:Connect(function()
+            if getgenv().InfinityJump then
+                local char = LocalPlayer.Character
+                if char then
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end
+            else
+                connection:Disconnect()
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Infinity jump DESATIVADO")
+        Notificar("Infinity Jump", "Desativado", 2)
     end
-    
 end)
 
+-- ESP Player
 MainFeatures:NewToggle("ESP Player","Ver Player", function(state)
+    getgenv().ESPEnabled = state
     if state then
-        --coloque o script que ativa aqui
+        -- Função para criar ESP
+        local function createESP(player)
+            if player == LocalPlayer then return end
+            
+            local esp = Instance.new("Highlight")
+            esp.Name = player.Name .. "_ESP"
+            esp.FillColor = Color3.fromRGB(255, 0, 0)
+            esp.OutlineColor = Color3.fromRGB(255, 255, 255)
+            esp.FillTransparency = 0.5
+            esp.OutlineTransparency = 0
+            esp.Parent = player.Character or player.CharacterAdded:Wait()
+            
+            player.CharacterAdded:Connect(function(char)
+                wait(0.5)
+                local newESP = Instance.new("Highlight")
+                newESP.Name = player.Name .. "_ESP"
+                newESP.FillColor = Color3.fromRGB(255, 0, 0)
+                newESP.OutlineColor = Color3.fromRGB(255, 255, 255)
+                newESP.FillTransparency = 0.5
+                newESP.OutlineTransparency = 0
+                newESP.Parent = char
+            end)
+        end
+        
+        -- Criar ESP para jogadores existentes
+        for _, player in ipairs(Players:GetPlayers()) do
+            createESP(player)
+        end
+        
+        -- Conectar para novos jogadores
+        Players.PlayerAdded:Connect(createESP)
+        
         print("ESP Player ATIVADO")
+        Notificar("ESP", "Ativado - Jogadores destacados em vermelho", 2)
     else
-        --coloque o script que desativa aqui
+        -- Remover ESP
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player.Character then
+                local esp = player.Character:FindFirstChild(player.Name .. "_ESP")
+                if esp then esp:Destroy() end
+            end
+        end
         print("ESP Player DESATIVADO")
+        Notificar("ESP", "Desativado", 2)
     end
-
-
 end)
 
--- === ADCIONAR TOGGLE ===
+-- === ADICIONAR TOGGLE ===
 local AutoHaki = Main:NewSection("Auto Haki")
 
-    -- Ativando os Haki
+-- Auto Haki (ARMAMENTO)
+-- FUNÇÃO: Verifica se o Haki Armamento está ativo
+local function HakiArmamentoAtivo()
+    local char = game.Players.LocalPlayer.Character
+    if not char then return false end
+
+    -- Procura pelos braços
+    local bracoDireito = char:FindFirstChild("Right Arm") or char:FindFirstChild("RightHand")
+    local bracoEsquerdo = char:FindFirstChild("Left Arm") or char:FindFirstChild("LeftHand")
+
+    -- Verifica se os braços estão pretos
+    if bracoDireito and bracoDireito.BrickColor == BrickColor.new("Really black") then
+        return true
+    end
+    if bracoEsquerdo and bracoEsquerdo.BrickColor == BrickColor.new("Really black") then
+        return true
+    end
+
+    return false
+end
+
+--Função para ativar
 AutoHaki:NewToggle("Auto Haki","Auto Haki", function(state)
+getgenv().AutoHaki = state
     if state then
-        --coloque o script que ativa aqui
-        print("Auto haki ATIVADO")
+        Notificar("Auto Haki", "Ativado (Braços pretos)", 2)
+        task.spawn(function()
+            while getgenv().AutoHaki do
+                pcall(function()
+                    if not HakiArmamentoAtivo() then
+                        game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.G, false, game)
+                        task.wait(0.1)
+                        game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.G, false, game)
+                    end
+                end)
+                task.wait(3)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
-    print("AUto Haki DESATIVADO")
+        Notificar("Auto Haki", "Desativado", 2)
     end
 end)
+
+-- Auto Observation (HAKI OBSERVAÇÃO)
 
 AutoHaki:NewToggle("Auto Observation","Haki OBS", function(state)
     if state then
-        --coloque o script que ativa aqui
-        print("Observation ATIVADO")
+        --coloque a codigo que ativa
+        print("Observation Haki ATIVADO")
     else
-        --coloque o script que desativa aqui
-        print("Observation DESATIVADO")
+        --coloque a codigo que desativa
+        print("Observation Haki DESATIVADO")
     end
 end)
-
+-- Auto Haki Conqueror (HAKI CONQUISTADOR - TECLA J)
 AutoHaki:NewToggle("Auto Haki Conqueror","Haki Conquis", function(state)
+    getgenv().AutoConqueror = state
     if state then
-        --coloque o script que ativa aqui
         print("Haki Conqueror ATIVADO")
+        Notificar("Auto Conqueror", "Ativado - Mantendo Haki Conquistador ativo", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoConqueror do
+                pcall(function()
+                    -- Pressiona J para ativar Conqueror
+                    local input = game:GetService("VirtualInputManager")
+                    input:SendKeyEvent(true, Enum.KeyCode.J, false, game)
+                    task.wait(0.1)
+                    input:SendKeyEvent(false, Enum.KeyCode.J, false, game)
+                end)
+                task.wait(5)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Haki Conqueror DESATIVADO")
+        Notificar("Auto Conqueror", "Desativado", 2)
     end
 end)
 
 -- =======================================================
-
 -- [[ ABA AUTO FARM ]]
-
 -- =======================================================
 
-    --SEÇÃO WEAPON
+-- SEÇÃO WEAPON
 local FarmSection = AutoFarm:NewSection("Weapon Settings")
 
-FarmSection:NewDropdown("Select Weapon","Selceione a arma", {"Combat", "Sword"}, function(option)
-print("Weapon: " .. option)
+local selectedWeapon = "None"
+
+-- Função para pegar armas do inventário
+local function GetMyInventory()
+    local Tools = {}  -- Deixa as {} Vazias
+    pcall(function()
+        -- Pega armas do Backpack
+        for _, v in pairs(LocalPlayer.Backpack:GetChildren()) do 
+            if v:IsA("Tool") then 
+                table.insert(Tools, v.Name) 
+            end 
+        end
+        -- Pega armas equipadas no personagem
+        if LocalPlayer.Character then
+            for _, v in pairs(LocalPlayer.Character:GetChildren()) do 
+                if v:IsA("Tool") then 
+                    table.insert(Tools, v.Name) 
+                end 
+            end
+        end
+    end)
+    -- Remove duplicatas
+    local unique = {}
+    for _, v in ipairs(Tools) do
+        if not unique[v] then
+            unique[v] = true
+        end
+    end
+    local result = {}
+    for k in pairs(unique) do
+        table.insert(result, k)
+    end
+    return result
+end
+-- FIM Função para pegar armas do inventário
+
+FarmSection:NewDropdown("Select Weapon","Selecione a arma", GetMyInventory(), function(option)
+    selectedWeapon = option
+    print("Weapon: " .. option)
 end)
 
 FarmSection:NewToggle("Auto Equip Weapon","Auto Equip", function (state)
-   if state then
-    --coloque o script que ativa aqui
+    getgenv().AutoEquipWeapon = state
+    if state then
         print("Auto Equip Weapon Selected")
+        Notificar("Auto Equip", "Equipando arma automaticamente", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoEquipWeapon do
+                pcall(function()
+                    local char = LocalPlayer.Character
+                    local backpack = LocalPlayer.Backpack
+                    
+                    if char and backpack and selectedWeapon ~= "None"then
+                        --verifica se a arma já esta equipada
+                        local armaEquipada = char:FindFirstChild(selectedWeapon)
+                        if not armaEquipada then
+                            --procura a arma no inventário
+                            local armaNoInventario = backpack:FindFirstChild(selectedWeapon)
+                    if armaNoInventario and armaNoInventario:IsA("Tool") then
+                                -- Equipa a arma
+                                char.Humanoid:EquipTool(armaNoInventario)
+                                print("✅ " .. selectedWeapon .. " equipada!")
+                                Notificar("Auto Equip", selectedWeapon .. " equipada!", 1)
+                            end
+                        end
+                    end
+                end)
+                task.wait(1)  -- Verifica a cada 1 segundo
+            end
+        end)
     else
-        --coloque o script que desativa aqui
-        print("Auto Equip Weapon Deselected")
+        print("Auto Equip DESATIVADO")
+        Notificar("Auto Equip", "Desativado", 2)
     end
 end)
 
-    --SEÇÃO MOB FARM/Quest 
-    -- Pega a quest do NPCs correspondentes a seleção e farma
+-- SEÇÃO MOB FARM
+-- SEÇÃO MOB FARM
 local MobFarm = AutoFarm:NewSection("Mob Farm")
 
-MobFarm:NewDropdown("Select NPCs","Selecione o NPC", {"None","Thief (Lv.10)", "ThiefBoss (Lv.25)", "Monkey (Lv.250)", "Monkei Boss (Lv.500)", "Desert Bandit (Lv.750)",
- "Desert Boss (Lv.1000)", "Frost Rogue (Lv.1500)", "Snow Boss (Lv.2000)", "Sorcerer Student (Lv.3000)", "Panda Boss (Lv.4000)", "Hollow (Lv.5000)", "Strong Sorcerer (Lv.6000)",
-"Curse (Lv.7000)", "Slime (Lv.8000)", "Academy Teacher (Lv.9000)"}, function(option)
+local selectedNPC = "None"
+local farmDistance = 5
+local lastTarget = nil
+
+-- Lista de opções para o usuário
+local MobsList = {
+    "None",
+    "Thief (Lv.10)",
+    "ThiefBoss (Lv.25)",
+    "Monkey (Lv.250)",
+    "Monkei Boss (Lv.500)",
+    "Desert Bandit (Lv.750)",
+    "Desert Boss (Lv.1000)",
+    "Frost Rogue (Lv.1500)",
+    "Snow Boss (Lv.2000)",
+    "Sorcerer Student (Lv.3000)",
+    "Panda Boss (Lv.4000)",
+    "Hollow (Lv.5000)",
+    "Strong Sorcerer (Lv.6000)",
+    "Curse (Lv.7000)",
+    "Slime (Lv.8000)",
+    "Academy Teacher (Lv.9000)"
+}
+
+-- Dicionário: cada opção -> lista de nomes reais
+local MobTargets = {
+    ["Thief (Lv.10)"] = {"Thief1", "Thief2", "Thief3", "Thief4", "Thief5"},
+    ["ThiefBoss (Lv.25)"] = {"ThiefBoss"},
+    ["Monkey (Lv.250)"] = {"Monkey1", "Monkey2", "Monkey3", "Monkey4", "Monkey5"},
+    ["Monkey Boss (Lv.500)"] = {"MonkeyBoss"},
+    ["Desert Bandit (Lv.750)"] = {"DesertBandit1", "DesertBandit2", "DesertBandit3", "DesertBandit4", "DesertBandit5"},
+    ["Desert Boss (Lv.1000)"] = {"DesertBoss"},
+    ["Frost Rogue (Lv.1500)"] = {"FrostRogue1", "FrostRogue2", "FrostRogue3", "FrostRogue4", "FrostRogue5"},
+    ["Snow Boss (Lv.2000)"] = {"SnowBoss"},
+    ["Sorcerer Student (Lv.3000)"] = {"Sorcerer1", "Sorcerer2", "Sorcerer3", "Sorcerer4", "Sorcerer5"},
+    ["Panda Boss (Lv.4000)"] = {"PandaMiniBoss"},
+    ["Hollow (Lv.5000)"] = {"Hollow1", "Hollow2", "Hollow3", "Hollow4"},
+    ["Strong Sorcerer (Lv.6000)"] = {"StrongSorcerer1", "StrongSorcerer2", "StrongSorcerer3", "StrongSorcerer4", "StrongSorcerer5"},
+    ["Curse (Lv.7000)"] = {"Curse1", "Curse2", "Curse3", "Curse4", "Curse5"},
+    ["Slime (Lv.8000)"] = {"Slime1", "Slime2", "Slime3", "Slime4", "Slime5"},
+    ["Academy Teacher (Lv.9000)"] = {"AcademyTeacher1", "AcademyTeacher2", "AcademyTeacher3", "AcademyTeacher4", "AcademyTeacher5"}
+}
+
+-- Função: encontra o primeiro mob vivo da lista
+local function FindMob(targetNames)
+    local player = game.Players.LocalPlayer
+    if not player or not player.Character then return nil end
+    
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+            for _, name in ipairs(targetNames) do
+                if obj.Name == name and obj.Humanoid.Health > 0 and obj ~= player.Character then
+                    return obj
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- Função de ataque
+local function AttackMob(target)
+    local player = game.Players.LocalPlayer
+    if not player or not player.Character then return end
+    
+    local root = player.Character:FindFirstChild("HumanoidRootPart")
+    local targetRoot = target:FindFirstChild("HumanoidRootPart")
+    
+    if root and targetRoot then
+        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, farmDistance)
+        task.wait(0.1)
+        
+        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
+        if remote and remote:FindFirstChild("Remotes") then
+            local hit = remote.Remotes:FindFirstChild("RequestHit")
+            if hit then
+                hit:FireServer()
+            end
+        end
+    end
+end
+
+-- Dropdown
+MobFarm:NewDropdown("Select NPCs", "Selecione o NPC", MobsList, function(option)
+    selectedNPC = option
     print("NPCs: " .. option)
+    Notificar("NPC Selecionado", option, 2)
 end)
 
-
-MobFarm:NewToggle("Auto Farm","Auto Farm", function(state)
+-- Toggle Auto Farm
+MobFarm:NewToggle("Auto Farm", "Auto Farm", function(state)
+    getgenv().AutoFarmAtivo = state
+    
     if state then
-        --coloque o script que ativa aqui
-        print("Auto Farm ATIVADO")
+        print("Auto Farm ATIVADO - Alvo: " .. selectedNPC)
+        Notificar("Auto Farm", "Ativado - Farmando " .. selectedNPC, 2)
+        
+        task.spawn(function()
+            while getgenv().AutoFarmAtivo do
+                pcall(function()
+                    if selectedNPC == "None" then
+                        task.wait(1)
+                        return
+                    end
+                    
+                    -- Pega a lista de nomes reais
+                    local targetNames = MobTargets[selectedNPC]
+                    if not targetNames then
+                        task.wait(1)
+                        return
+                    end
+                    
+                    -- Encontra um mob
+                    local target = FindMob(targetNames)
+                    
+                    if target then
+                    if lastTarget ~= target.Name then
+                            lastTarget = target.Name
+                            print("Atacando: " .. target.Name)
+                        end
+                        
+                        -- Mata o mob
+                        while getgenv().AutoFarmAtivo and target and target.Parent and target.Humanoid.Health > 0 do
+                            AttackMob(target)
+                            task.wait(0.2)
+                        end
+                        
+                        lastTarget = nil
+                    else
+                        if math.random(1, 30) == 1 then
+                            print("Procurando: " .. selectedNPC)
+                        end
+                        task.wait(1)
+                    end
+                end)
+                task.wait(0.1)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Farm DESATIVADO")
+        Notificar("Auto Farm", "Desativado", 2)
+        lastTarget = nil
     end
 end)
 
-MobFarm:NewSlider("Farm Distance","DistanceFarm", 20, 5, function(s)
+-- Slider
+MobFarm:NewSlider("Farm Distance", "DistanceFarm", 20, 5, function(s)
+    farmDistance = s
     print("Distance: " .. s)
 end)
 
-    -- SEÇÃO FARM ALL MOBS
-    -- Farma todos os NPCs sem pegar a quest
-    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
+-- SEÇÃO ALL MOB FARM
 local AllMob = AutoFarm:NewSection("All Mob Farm")
 
-
 AllMob:NewToggle("Auto Farm All Mobs","Farm All Mobs", function (state)
+    getgenv().AutoFarmAllMobs = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Farm All Mobs ATIVADO")
+        Notificar("Auto Farm All Mobs", "Farmando todos os mobs", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoFarmAllMobs do
+                pcall(function()
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+                            local humanoide = obj.Humanoid
+                            if humanoide and humanoide.Health > 0 and obj ~= LocalPlayer.Character then
+                                local char = LocalPlayer.Character
+                                if char then
+                                    local root = char:FindFirstChild("HumanoidRootPart")
+                                    local targetRoot = obj.HumanoidRootPart
+                                    if root and targetRoot then
+                                        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, farmDistance)
+                                        task.wait(0.1)
+                                        
+                                        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
+                                        if remote then
+                                            remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit"):FireServer()
+                                        end
+                                    end
+                                end
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Farm All Mobs DESATIVADO")
+        Notificar("Auto Farm All Mobs", "Desativado", 2)
     end
 end)
 
-    --SEÇÃO FARM BOSS
-    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
+-- SEÇÃO FARM BOSS
 local FarmBoos = AutoFarm:NewSection("Farm Boss")
+
+local selectedBoss = "YujiBoss"
 
 FarmBoos:NewDropdown("Select Boss","Selecione o Boss", {"YujiBoss","GojoBoss","SukunaBoss","AizenBoss",
 "MadokaBoss","JinwooBoss","AlucardBoss"}, function (option)
+    selectedBoss = option
     print("Boss: " .. option)
+    Notificar("Boss Selecionado", option, 2)
 end)
+
 FarmBoos:NewToggle("Auto Farm Boss","Farm Boss", function (state)
+    getgenv().AutoFarmBoss = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Farm Boss ATIVADO")
+        Notificar("Auto Farm Boss", "Farmando " .. selectedBoss, 2)
+        
+        task.spawn(function()
+            while getgenv().AutoFarmBoss do
+                pcall(function()
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Name:find(selectedBoss) then
+                            local humanoide = obj.Humanoid
+                            if humanoide and humanoide.Health > 0 then
+                                local char = LocalPlayer.Character
+                                if char then
+                                    local root = char:FindFirstChild("HumanoidRootPart")
+                                    local targetRoot = obj.HumanoidRootPart
+                                    if root and targetRoot then
+                                        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, farmDistance)
+                                        task.wait(0.1)
+                                        
+                                        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
+                                        if remote then
+                                            remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit"):FireServer()
+                                        end
+                                    end
+                                end
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Farm Boss DESATIVADO")
+        Notificar("Auto Farm Boss", "Desativado", 2)
     end
 end)
 
-    --SEÇÃO DE BOSS SUMMON
-    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
+-- SEÇÃO BOSS SUMMON
 local FarmBossSummon = AutoFarm:NewSection("Farm Boss Summon")
+
+local selectedSummon = "Ichigo"
 
 FarmBossSummon:NewDropdown("Select Boss Summon","Selecione o Boss Para Sumonar", {"Ichigo","Saber","QinShi"},
 function (option)
+    selectedSummon = option
     print("Boss: " .. option)
+    Notificar("Summon Selecionado", option, 2)
 end)
 
 FarmBossSummon:NewToggle("Auto Summon Boss","Summon Boss", function (state)
+    getgenv().AutoSummonBoss = state
     if state then
-        --coloque o script que ativa aqui
         print("Boss Summoned")
+        Notificar("Auto Summon", "Summonando " .. selectedSummon, 2)
+        
+        task.spawn(function()
+            while getgenv().AutoSummonBoss do
+                pcall(function()
+                    -- Comando para summon boss (ajuste conforme o jogo)
+                    local args = { [1] = selectedSummon }
+                    game:GetService("ReplicatedStorage"):FindFirstChild("SummonBoss"):FireServer(unpack(args))
+                end)
+                task.wait(10)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Boss Unsummoned")
+        Notificar("Auto Summon", "Desativado", 2)
     end
 end)
 
 FarmBossSummon:NewToggle("Auto Kill Summon","Auto Kill", function (state)
+    getgenv().AutoKillSummon = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Kill Boss Summoned ATIVADO")
+        Notificar("Auto Kill Summon", "Ativado", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoKillSummon do
+                pcall(function()
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Name:find(selectedSummon) then
+                            local humanoide = obj.Humanoid
+                            if humanoide and humanoide.Health > 0 then
+                                local char = LocalPlayer.Character
+                                if char then
+                                    local root = char:FindFirstChild("HumanoidRootPart")
+                                    local targetRoot = obj.HumanoidRootPart
+                                    if root and targetRoot then
+                                        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, farmDistance)
+                                        task.wait(0.1)
+                                        
+                                        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
+                                        if remote then
+                                            remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit"):FireServer()
+                                        end
+                                    end
+                                end
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Kill Boss Summoned DESATIVADO")
+        Notificar("Auto Kill Summon", "Desativado", 2)
     end
 end)
 
-    --SEÇÃO SKILL
-    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
+-- SEÇÃO SKILL
 local Skills = AutoFarm:NewSection("Skill Manage")
 
+local selectedSkill = "Z"
+
 Skills:NewDropdown("Select Skills","Selecione as skills", {"Z","X","C","V","F"}, function (option)
-    print("Skills Selected: " ..option)
+    selectedSkill = option
+    print("Skills Selected: " .. option)
+    Notificar("Skill Selecionada", option, 2)
 end)
+
 Skills:NewToggle("Auto Use Skills","Use Skills", function (state)
+    getgenv().AutoUseSkills = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Use Skills ATIVADO")
+        Notificar("Auto Skills", "Ativado - Usando skill " .. selectedSkill, 2)
+        
+        task.spawn(function()
+            while getgenv().AutoUseSkills do
+                pcall(function()
+                    local input = game:GetService("VirtualInputManager")
+                    input:SendKeyEvent(true, selectedSkill, false, game)
+                    task.wait(0.1)
+                    input:SendKeyEvent(false, selectedSkill, false, game)
+                end)
+                task.wait(1)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Use Skills DESATIVADO")
+        Notificar("Auto Skills", "Desativado", 2)
     end
 end)
 
 -- =======================================================
-
 -- [[ ABA QUEST ]]
-
 -- =======================================================
 
 local QuestSection = Quest:NewSection("Quest Settings")
 
 QuestSection:NewToggle("Auto Accept Quest","Accept Quest", function (state)
+    getgenv().AutoAcceptQuest = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Accept Quest ATIVADO")
+        Notificar("Auto Accept", "Aceitando quests automaticamente", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoAcceptQuest do
+                pcall(function()
+                    -- Procurar NPC de quest e aceitar
+                    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("AcceptQuest")
+                    if remote then
+                        remote:FireServer()
+                    end
+                end)
+                task.wait(3)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Accept Quest DESATIVADO")
+        Notificar("Auto Accept", "Desativado", 2)
     end
 end)
 
 QuestSection:NewToggle("Auto Complete Quest","Complete Quest", function (state)
+    getgenv().AutoCompleteQuest = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Complete Quest ATIVADO")
+        Notificar("Auto Complete", "Completando quests automaticamente", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoCompleteQuest do
+                pcall(function()
+                    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CompleteQuest")
+                    if remote then
+                        remote:FireServer()
+                    end
+                end)
+                task.wait(3)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Complete Quest DESATIVADO")
+        Notificar("Auto Complete", "Desativado", 2)
     end
 end)
 
 QuestSection:NewDropdown("Selec Quest","Selecione a Quest", {"Quest (Lv.1-10)","Quest (Lv.25)",
 "Quest (Lv.500)","Tem que Adicionar mais ou remover"}, function (option)
     print("Quest Selected: " .. option)
+    Notificar("Quest Selecionada", option, 2)
 end)
 
 -- =======================================================
-
 -- [[ ABA BOSS ]]
-
 -- =======================================================
 
-    --Boss Anos
-
+-- Boss Anos
 local BossAnos = Boss:NewSection("Auto Summon Anos Boss")
 
-BossAnos:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard",
-"Extreme"}, function (option)
+local anosDifficulty = "Normal"
+
+BossAnos:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard","Extreme"}, function (option)
+    anosDifficulty = option
     print("Difficulty: " .. option)
 end)
+
 BossAnos:NewToggle("Auto Summon Anos","Anos", function (state)
+    getgenv().AutoSummonAnos = state
     if state then
-        --coloque o script que ativa aqui
         print("Anos Summon ATIVADO")
+        Notificar("Auto Summon Anos", "Ativado - Dificuldade: " .. anosDifficulty, 2)
+        
+        task.spawn(function()
+            while getgenv().AutoSummonAnos do
+                pcall(function()
+                    local args = { [1] = "Anos", [2] = anosDifficulty }
+                    game:GetService("ReplicatedStorage"):FindFirstChild("SummonBoss"):FireServer(unpack(args))
+                end)
+                task.wait(10)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Anos Summon DESATIVADO")
-    end
-end)
-BossAnos:NewToggle("Auto Kill Anos","Kill Anos", function (state)
-    if state then
-        --coloque o script que ativa aqui
-        print("Auto Kill Anos ATIVADO")
-    else
-        --coloque o script que desativa aqui
-        print("Auto Kill Anos DESATIVADO")
+        Notificar("Auto Summon Anos", "Desativado", 2)
     end
 end)
 
-    --Summon Boss V2
-    --ATENÇÃO!!! TEM QUE CRIAR UM NOVO LOCAL COM UMA NOVA VARIAVEL!!!!
-    -- EXEMPLO local SummonBossV2
+BossAnos:NewToggle("Auto Kill Anos","Kill Anos", function (state)
+    getgenv().AutoKillAnos = state
+    if state then
+        print("Auto Kill Anos ATIVADO")
+        Notificar("Auto Kill Anos", "Ativado", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoKillAnos do
+                pcall(function()
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Name:find("Anos") then
+                            local humanoide = obj.Humanoid
+                            if humanoide and humanoide.Health > 0 then
+                                local char = LocalPlayer.Character
+                                if char then
+                                    local root = char:FindFirstChild("HumanoidRootPart")
+                                    local targetRoot = obj.HumanoidRootPart
+                                    if root and targetRoot then
+                                        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, farmDistance)
+                                        task.wait(0.1)
+                                        
+                                        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
+                                        if remote then
+                                            remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit"):FireServer()
+                                        end
+                                    end
+                                end
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    else
+        print("Auto Kill Anos DESATIVADO")
+        Notificar("Auto Kill Anos", "Desativado", 2)
+    end
+end)
+
+-- Summon Boss V2
 local SummonBossV2 = Boss:NewSection("Summon Boss V2")
 
+local bossV2 = "GojoV2"
+local bossV2Difficulty = "Normal"
+
 SummonBossV2:NewDropdown("Select Boss","Selecione o Boss V2", {"GojoV2","SukunaV2"}, function (option)
+    bossV2 = option
     print("Boss Select: ".. option)
 end)
 
-SummonBossV2:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard",
-"Extreme"}, function (option)
+SummonBossV2:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard","Extreme"}, function (option)
+    bossV2Difficulty = option
     print("Difficulty: " .. option)
 end)
+
 SummonBossV2:NewToggle("Auto Summon V2","Summon V2", function (state)
+    getgenv().AutoSummonV2 = state
     if state then
-        --coloque o script que ativa aqui
         print("Summon Boss V2 ATIVADO")
+        Notificar("Auto Summon V2", "Ativado", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoSummonV2 do
+                pcall(function()
+                    local args = { [1] = bossV2, [2] = bossV2Difficulty }
+                    game:GetService("ReplicatedStorage"):FindFirstChild("SummonBoss"):FireServer(unpack(args))
+                end)
+                task.wait(10)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Summon Boss V2 DESATIVADO")
+        Notificar("Auto Summon V2", "Desativado", 2)
     end
 end)
 
-    --Summon Rimuru
-    --Criar Novo local. Exemplo local Summon Rimuru
+-- Summon Rimuru
 local SummonRimuru = Boss:NewSection("Summon Rimuru")
 
-SummonRimuru:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard",
-"Extreme"}, function (option)
+local rimuruDifficulty = "Normal"
+
+SummonRimuru:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard","Extreme"}, function (option)
+    rimuruDifficulty = option
     print("Difficulty: " .. option)
 end)
+
 SummonRimuru:NewToggle("Auto Summon Rimuru","Summon Rimuru", function (state)
+    getgenv().AutoSummonRimuru = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Summon Rimuru ATIVADO")
+        Notificar("Auto Summon Rimuru", "Ativado", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoSummonRimuru do
+                pcall(function()
+                    local args = { [1] = "Rimuru", [2] = rimuruDifficulty }
+                    game:GetService("ReplicatedStorage"):FindFirstChild("SummonBoss"):FireServer(unpack(args))
+                end)
+                task.wait(10)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Summon Rimuru DESATIVADO")
-    end
-end)
-SummonRimuru:NewToggle("Auto Kill Rimuru","Kill Rimuru", function (state)
-    if state then
-        --coloque o script que ativa aqui
-        print("Auto Kill Rimuru ATIVADO")
-    else
-        --coloque o script que desativa aqui
-        print("Auto Kill Rimuru DESATIVADO")
+        Notificar("Auto Summon Rimuru", "Desativado", 2)
     end
 end)
 
-    --Summon Gilgamesh
-    --Criar Novo local. EXEMPLO local SummonGilgamesh
+SummonRimuru:NewToggle("Auto Kill Rimuru","Kill Rimuru", function (state)
+    getgenv().AutoKillRimuru = state
+    if state then
+        print("Auto Kill Rimuru ATIVADO")
+        Notificar("Auto Kill Rimuru", "Ativado", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoKillRimuru do
+                pcall(function()
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Name:find("Rimuru") then
+                            local humanoide = obj.Humanoid
+                            if humanoide and humanoide.Health > 0 then
+                                local char = LocalPlayer.Character
+                                if char then
+                                    local root = char:FindFirstChild("HumanoidRootPart")
+                                    local targetRoot = obj.HumanoidRootPart
+                                    if root and targetRoot then
+                                        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, farmDistance)
+                                        task.wait(0.1)
+                                        
+                                        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
+                                        if remote then
+                                            remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit"):FireServer()
+                                        end
+                                    end
+                                end
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
+    else
+        print("Auto Kill Rimuru DESATIVADO")
+        Notificar("Auto Kill Rimuru", "Desativado", 2)
+    end
+end)
+
+-- Summon Gilgamesh
 local SummonGilgamesh = Boss:NewSection("Summon Gilgamesh")
 
-SummonGilgamesh:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard",
-"Extreme"}, function (option)
+local gilgameshDifficulty = "Normal"
+
+SummonGilgamesh:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard","Extreme"}, function (option)
+    gilgameshDifficulty = option
     print("Difficulty: " .. option)
 end)
+
 SummonGilgamesh:NewToggle("Auto Summon Gilgamesh","Summon Gilgamesh", function (state)
+    getgenv().AutoSummonGilgamesh = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Summon Gilgamesh ATIVADO")
+        Notificar("Auto Summon Gilgamesh", "Ativado", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoSummonGilgamesh do
+                pcall(function()
+                    local args = { [1] = "Gilgamesh", [2] = gilgameshDifficulty }
+                    game:GetService("ReplicatedStorage"):FindFirstChild("SummonBoss"):FireServer(unpack(args))
+                end)
+                task.wait(10)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Summon Gilamesh")
+        Notificar("Auto Summon Gilgamesh", "Desativado", 2)
     end
 end)
+
 SummonGilgamesh:NewToggle("Auto Kill Gilgamesh","Kill Gilgamesh", function (state)
+    getgenv().AutoKillGilgamesh = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Kill Gilgamesh ATIVADO")
+        Notificar("Auto Kill Gilgamesh", "Ativado", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoKillGilgamesh do
+                pcall(function()
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Name:find("Gilgamesh") then
+                            local humanoide = obj.Humanoid
+                            if humanoide and humanoide.Health > 0 then
+                                local char = LocalPlayer.Character
+                                if char then
+                                    local root = char:FindFirstChild("HumanoidRootPart")
+                                    local targetRoot = obj.HumanoidRootPart
+                                    if root and targetRoot then
+                                        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, farmDistance)
+                                        task.wait(0.1)
+                                        
+                                        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
+                                        if remote then
+                                            remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit"):FireServer()
+                                        end
+                                    end
+                                end
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Kill Gilgamesh DESATIVADO")
+        Notificar("Auto Kill Gilgamesh", "Desativado", 2)
     end
 end)
 
 -- =======================================================
-
 -- [[ ABA DUNGEON ]]
-
 -- =======================================================
 
 local DungeonPortal = Dungeon:NewSection("Dungeon Portal")
 
-DungeonPortal:NewDropdown("Select Dungeon","Selecione a Dungeon", {"CidDungeon","RuneDungeon",
-"DoubleDungeon"}, function (option)
+local selectedDungeon = "CidDungeon"
+
+DungeonPortal:NewDropdown("Select Dungeon","Selecione a Dungeon", {"CidDungeon","RuneDungeon","DoubleDungeon"}, function (option)
+    selectedDungeon = option
     print("Dungeon: " .. option)
+    Notificar("Dungeon Selecionada", option, 2)
 end)
-DungeonPortal:NewToggle("Auto Join Dungeon","Join Dungeon",function (state)
+
+DungeonPortal:NewToggle("Auto Join Dungeon","Join Dungeon", function (state)
+    getgenv().AutoJoinDungeon = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Join Dungeon ATIVADO")
+        Notificar("Auto Join Dungeon", "Entrando em " .. selectedDungeon, 2)
+        
+        task.spawn(function()
+            while getgenv().AutoJoinDungeon do
+                pcall(function()
+                    local args = { [1] = selectedDungeon }
+                    game:GetService("ReplicatedStorage"):FindFirstChild("JoinDungeon"):FireServer(unpack(args))
+                end)
+                task.wait(5)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Dungeon DESATIVADO")
+        Notificar("Auto Join Dungeon", "Desativado", 2)
     end
 end)
-    --Dungeons Options
-    --Criar outro locar. Exemplo local DungeonOptions
+
+-- Dungeon Options
 local DungeonOptions = Dungeon:NewSection("Dungeon Options")
 
 DungeonOptions:NewToggle("Auto Retry","Retry", function (state)
+    getgenv().AutoRetry = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Retry ATIVADO")
+        Notificar("Auto Retry", "Reiniciando dungeon automaticamente", 2)
     else
-        --coloque o script que desativa aqui
         print("Auto Retry DESATIVADO")
+        Notificar("Auto Retry", "Desativado", 2)
     end
 end)
-    --Dungeon Wave Vote
-    --Criar outro local. EXEMPLO local DungeonWaveVote
+
+-- Dungeon Wave Vote
 local DungeonWaveVote = Dungeon:NewSection("Dungeon Wave Vote")
 
-DungeonWaveVote:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium",
-"Hard","Extreme"}, function (option)
+local voteDifficulty = "Normal"
+
+DungeonWaveVote:NewDropdown("Select Difficulty","Selecione a Dificuldade", {"Normal","Medium","Hard","Extreme"}, function (option)
+    voteDifficulty = option
     print("Difficulty: " .. option)
 end)
+
 DungeonWaveVote:NewToggle("Auto Vote Difficulty","Vote Difficulty", function (state)
+    getgenv().AutoVoteDifficulty = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Vote Difficulty ATIVADO")
+        Notificar("Auto Vote", "Votando dificuldade: " .. voteDifficulty, 2)
+        
+        task.spawn(function()
+            while getgenv().AutoVoteDifficulty do
+                pcall(function()
+                    local args = { [1] = voteDifficulty }
+                    game:GetService("ReplicatedStorage"):FindFirstChild("VoteDifficulty"):FireServer(unpack(args))
+                end)
+                task.wait(1)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Vote Difficulty DESATIVADO")
+        Notificar("Auto Vote", "Desativado", 2)
     end
 end)
+
 DungeonWaveVote:NewToggle("Start Kill","Kill", function (state)
+    getgenv().StartKill = state
     if state then
-        --coloque o script que ativa aqui
         print("Start Kill Dungeon ATIVADO")
+        Notificar("Start Kill", "Atacando na dungeon", 2)
+        
+        task.spawn(function()
+            while getgenv().StartKill do
+                pcall(function()
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj.Humanoid.Health > 0 then
+                            if obj ~= LocalPlayer.Character then
+                                local char = LocalPlayer.Character
+                                if char then
+                                    local root = char:FindFirstChild("HumanoidRootPart")
+                                    local targetRoot = obj.HumanoidRootPart
+                                    if root and targetRoot then
+                                        root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, farmDistance)
+                                        task.wait(0.1)
+                                        
+                                        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatSystem")
+                                        if remote then
+                                            remote:FindFirstChild("Remotes"):FindFirstChild("RequestHit"):FireServer()
+                                        end
+                                    end
+                                end
+                                break
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.5)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Start Kill Dungeon DESATIVADO")
+        Notificar("Start Kill", "Desativado", 2)
     end
 end)
 
 -- =======================================================
-
 -- [[ ABA STATS ]]
-
 -- =======================================================
 
-    --Cirar outro local. EXEMPLO local StatsSection
 local StatsSection = Stats:NewSection("Stats Settings")
 
+local strengthValue = 0
+local defenseValue = 0
+local speedValue = 0
+
 StatsSection:NewToggle("Auto Stats Allocation","Auto Stats", function (state)
+    getgenv().AutoStats = state
     if state then
-        --coloque o script que ativa aqui
         print("Auto Stats ATIVADO")
+        Notificar("Auto Stats", "Distribuindo stats automaticamente", 2)
+        
+        task.spawn(function()
+            while getgenv().AutoStats do
+                pcall(function()
+                    local args = {
+                        [1] = strengthValue,
+                        [2] = defenseValue,
+                        [3] = speedValue
+                    }
+                    game:GetService("ReplicatedStorage"):FindFirstChild("AllocateStats"):FireServer(unpack(args))
+                end)
+                task.wait(1)
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Auto Stats DESATIVADO")
+        Notificar("Auto Stats", "Desativado", 2)
     end
 end)
+
 StatsSection:NewSlider("Strength","Força", 100, 0, function (s)
+    strengthValue = s
     print("Strength: ".. s)
 end)
+
 StatsSection:NewSlider("Defense","Defesa", 100, 0, function (s)
+    defenseValue = s
     print("Defense: " .. s)
 end)
+
 StatsSection:NewSlider("Speed","Velocidade", 100, 0, function (s)
+    speedValue = s
     print("Speed: " .. s)
 end)
--- =======================================================
 
+-- =======================================================
 -- [[ ABA TELEPORT ]]
-
 -- =======================================================
-    --Cirar outro local. EXEMPLO local TeleportSection
+
 local TeleportSection = Teleport:NewSection("Teleport Options")
+
+local selectedIsland = "Starter Island"
+local islandPositions = {
+    ["Starter Island"] = CFrame.new(0, 50, 0),
+    ["Jungle Island"] = CFrame.new(1000, 50, 0),
+    ["Desert Island"] = CFrame.new(2000, 50, 0),
+    ["Snow Island"] = CFrame.new(3000, 50, 0),
+    ["Sailor Island"] = CFrame.new(4000, 50, 0),
+    ["Shibuya Station"] = CFrame.new(5000, 50, 0),
+    ["Hueco Mundo"] = CFrame.new(6000, 50, 0),
+    ["Boss Island"] = CFrame.new(7000, 50, 0),
+    ["Dungeon Island"] = CFrame.new(8000, 50, 0),
+    ["Shinjuku Island"] = CFrame.new(9000, 50, 0),
+    ["Valentine Island"] = CFrame.new(10000, 50, 0),
+    ["Slime Island"] = CFrame.new(11000, 50, 0),
+    ["Academy Island"] = CFrame.new(12000, 50, 0),
+}
 
 TeleportSection:NewDropdown("Select Island","Selecione a Ilha", {"Starter Island","Jungle Island",
 "Desert Island","Snow Island","Sailor Island","Shibuya Station",
 "Hueco Mundo","Boss Island","Dungeon Island","Shinjuku Island",
 "Valentine Island","Slime Island","Academy Island"}, function (option)
+    selectedIsland = option
     print("Island: " .. option)
+    Notificar("Ilha Selecionada", option, 2)
 end)
+
 TeleportSection:NewButton("Teleport", "Teleport para a ilha", function ()
-    print("Teleportado")
+    local cframe = islandPositions[selectedIsland]
+    if cframe then
+        TeleportarPara(cframe.Position)
+        print("Teleportado para " .. selectedIsland)
+        Notificar("Teleport", "Teleportado para " .. selectedIsland, 2)
+    end
 end)
 
 -- =======================================================
-
 -- [[ ABA SETTINGS ]]
-
 -- =======================================================
-    --Cirar outro local. EXEMPLO local SettingsSection
+
 local SettingsSection = Settings:NewSection("General Settings")
 
 SettingsSection:NewToggle("Anti AFK","Anti AFK", function (state)
+    getgenv().AntiAFK = state
     if state then
-        --coloque o script que ativa aqui
         print("Anti AFK ATIVADO")
+        Notificar("Anti AFK", "Ativado - Não será desconectado", 2)
+        
+        -- Anti AFK
+        LocalPlayer.Idled:Connect(function()
+            if getgenv().AntiAFK then
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new(0,0))
+            end
+        end)
     else
-        --coloque o script que desativa aqui
         print("Anti AFK DESATIVADO")
+        Notificar("Anti AFK", "Desativado", 2)
     end
 end)
 
 SettingsSection:NewKeybind("Toggle UI", "Tecla para Abrir/Fechar UI", Enum.KeyCode.K, function ()
     library:ToggleUI()
 end)
+
 -- ============================================
 -- [[ INICIALIZAÇÃO ]]
 -- ============================================
 print("=== Sailor Piece Script ===")
-print("📌 Use F4 para abrir/fechar a UI")
+print("📌 Use K para abrir/fechar a UI")
 print("Feito Por DK Dev")
+
+Notificar("🍀 2x Luck 🍀", "Script carregado! Use K para abrir/fechar", 3)
